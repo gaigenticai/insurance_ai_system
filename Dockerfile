@@ -1,7 +1,3 @@
-"""
-Dockerfile for the Insurance AI System.
-Multi-stage build for API, worker, and UI components.
-"""
 
 # Base stage with common dependencies
 FROM python:3.10-slim AS base

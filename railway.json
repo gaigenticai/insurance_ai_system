@@ -1,7 +1,4 @@
-"""
-Railway.app configuration file for the Insurance AI System.
-Configures deployment settings for Railway.com.
-"""
+
 
 {
   "schema": "https://railway.app/railway.schema.json",
