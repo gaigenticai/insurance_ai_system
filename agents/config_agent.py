@@ -3,9 +3,9 @@ import os
 from typing import Any, Dict, Optional, Tuple
 
 # Import utility modules
-from insurance_ai_system.utils.logging_utils import audit_logger
-from insurance_ai_system.utils.config_utils import ConfigValidator
-from insurance_ai_system.utils.error_utils import get_error_handler
+from utils.logging_utils import audit_logger
+from utils.config_utils import ConfigValidator
+from utils.error_utils import get_error_handler
 
 class ConfigAgent:
     """

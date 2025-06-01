@@ -16,12 +16,12 @@ from fastapi.responses import JSONResponse
 import uvicorn
 
 # Import system modules
-from insurance_ai_system.agents.config_agent import ConfigAgent
-from insurance_ai_system.modules.underwriting.flow import UnderwritingFlow
-from insurance_ai_system.modules.claims.flow import ClaimsFlow
-from insurance_ai_system.modules.actuarial.flow import ActuarialFlow
-from insurance_ai_system.utils.logging_utils import audit_logger
-from insurance_ai_system.utils.error_utils import get_error_handler
+from agents.config_agent import ConfigAgent
+from modules.underwriting.flow import UnderwritingFlow
+from modules.claims.flow import ClaimsFlow
+from modules.actuarial.flow import ActuarialFlow
+from utils.logging_utils import audit_logger
+from utils.error_utils import get_error_handler
 
 # Create FastAPI app
 app = FastAPI(

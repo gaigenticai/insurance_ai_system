@@ -3,9 +3,9 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional
 
 # Import utility modules
-from insurance_ai_system.utils.logging_utils import audit_logger
-from insurance_ai_system.utils.error_utils import get_error_handler
-from insurance_ai_system.utils.branding_utils import get_branding_manager
+from utils.logging_utils import audit_logger
+from utils.error_utils import get_error_handler
+from utils.branding_utils import get_branding_manager
 
 class BaseAgent(ABC):
     """
