@@ -1,4 +1,4 @@
-from ...base.base_agent import BaseAgent
+from agents.base.base_agent import BaseAgent
 from typing import Any, Dict
 import json
 import os
@@ -64,10 +64,13 @@ class ReportGeneratorAgent(BaseAgent):
         # Fraud Insights Section
         fraud_insights = data.get("fraud_insights", {})
         if fraud_insights:
-            report_lines.append("## Fraud Insight            report_lines.append(f"- Claims previously flagged during processing: {fraud_insights.get("flagged_claims_count", 0)}")
-            patterns = fraud_insights.get("suspicious_patterns_found", [])          report_lines.append("- Potential Suspicious Patterns Detected:")tterns:
-                     report_lines.append(f"  - {pattern}")
-            report_lines.append("\n") # Add newline after the sectiond("--- ")
+            report_lines.append("## Fraud Insights")
+            report_lines.append(f"- Claims previously flagged during processing: {fraud_insights.get('flagged_claims_count', 0)}")
+            report_lines.append("- Potential Suspicious Patterns Detected:")
+            patterns = fraud_insights.get("suspicious_patterns_found", [])
+            for pattern in patterns:
+                report_lines.append(f"  - {pattern}")
+            report_lines.append("\n") # Add newline after the section
         report_lines.append("*End of Report*")
 
         return "\n".join(report_lines)

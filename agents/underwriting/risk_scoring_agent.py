@@ -1,4 +1,4 @@
-from ..base.base_agent import BaseAgent
+from agents.base.base_agent import BaseAgent
 from typing import Any, Dict
 
 class RiskScoringAgent(BaseAgent):
