@@ -1,27 +1,51 @@
 #!/usr/bin/env python3
+"""
+Main module for the Insurance AI System.
+Entry point for the application with PostgreSQL integration.
+"""
 
 import argparse
-import json
+import logging
 import os
 import sys
+from typing import Dict, Any
 
 # Add project root parent to Python path to allow package imports
 project_root = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(project_root))
 
-from agents.config_agent import ConfigAgent
-from modules.underwriting.flow import UnderwritingFlow
+# Import from db_connection for PostgreSQL operations
+from db_connection import execute_query, close_all_connections
+
+# Import original modules and agents
+from config_agent import ConfigAgent
+from underwriting_flow import UnderwritingFlow
 from modules.claims.flow import ClaimsFlow
 from modules.actuarial.flow import ActuarialFlow
-from utils.logging_utils import audit_logger
+from application_manager import ApplicationManager
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler(os.path.join(project_root, 'logs', 'insurance_ai.log'), 'a')
+    ]
+)
+logger = logging.getLogger(__name__)
+
+# Configure formatter for console output
+formatter = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+
 
 def run_underwriting_examples(config_agent, institution_id):
     """Run example underwriting scenarios for demonstration and testing."""
-    logger = audit_logger.get_logger("main")
     logger.info(f"Running Underwriting Flow Examples for {institution_id}")
     print(f"\n--- Running Underwriting Flow Examples for {institution_id} ---")
     
-    flow = UnderwritingFlow(config_agent)
+    # Initialize application manager
+    app_manager = ApplicationManager(config_agent.institution_id)
     
     # Example application with enough data
     app_data_complete = {
@@ -35,168 +59,134 @@ def run_underwriting_examples(config_agent, institution_id):
         "address_location_tag": "SafeZoneC",
         "document_text": "Name: Alice Example\nDOB: 01/01/1990\nOther info..."
     }
-    result_complete = flow.run(app_data_complete, institution_id)
-    print("\n--- Complete Application Result ---")
-    print(json.dumps(result_complete, indent=2))
-
-    # Example application missing data
+    
+    # Create application
+    application_id = app_manager.create_application(app_data_complete)
+    
+    if not application_id:
+        logger.error("Failed to create application")
+        return
+    
+    logger.info(f"Created application: {application_id}")
+    
+    # Initialize underwriting flow
+    flow = UnderwritingFlow(config_agent)
+    
+    # Process application
+    result = flow.process_application(application_id)
+    
+    logger.info(f"Underwriting result: {result}")
+    
+    # Get decision
+    decision = flow.get_underwriting_decision(application_id)
+    
+    if decision:
+        logger.info(f"Decision details: {decision}")
+    else:
+        logger.warning("No decision found")
+    
+    # Example with incomplete data
     app_data_incomplete = {
         "applicant_id": "UW-TEST-002",
-        "full_name": "Bob Test",
-        "address": "456 Side St",
-        # Missing DOB, income, credit_score
-        "document_text": "Name: Bob Test"
+        "full_name": "Bob Example",
+        "address": "456 Oak St",
+        # Missing other fields
     }
-    result_incomplete = flow.run(app_data_incomplete, institution_id)
-    print("\n--- Incomplete Application Result ---")
-    print(json.dumps(result_incomplete, indent=2))
+    
+    # Create application
+    application_id2 = app_manager.create_application(app_data_incomplete)
+    
+    if application_id2:
+        logger.info(f"Created incomplete application: {application_id2}")
+        
+        # Process application
+        result2 = flow.process_application(application_id2)
+        logger.info(f"Underwriting result for incomplete application: {result2}")
 
-    # Example application with low score
-    app_data_low_score = {
-        "applicant_id": "UW-TEST-003",
-        "full_name": "Charlie Risk",
-        "address": "789 Danger Ave",
-        "date_of_birth": "03/15/1985",
-        "income": 50000,
-        "credit_score": 580, # Below threshold
-        "debt_to_income_ratio": 0.5, # Above threshold
-        "address_location_tag": "FloodZoneA", # High risk
-        "document_text": "Name: Charlie Risk\nDOB: 03/15/1985"
-    }
-    result_low_score = flow.run(app_data_low_score, institution_id)
-    print("\n--- Low Score Application Result ---")
-    print(json.dumps(result_low_score, indent=2))
 
 def run_claims_examples(config_agent, institution_id):
     """Run example claims scenarios for demonstration and testing."""
-    logger = audit_logger.get_logger("main")
     logger.info(f"Running Claims Flow Examples for {institution_id}")
     print(f"\n--- Running Claims Flow Examples for {institution_id} ---")
     
+    # Initialize claims flow
     flow = ClaimsFlow(config_agent)
-
-    # Example 1: Simple, low-value, valid claim -> AutoApproved
-    claim_low_value = {
-        "claim_id": "CLM-AUTO-001",
-        "policy_id": "POLICY_ACTIVE_001",
-        "claimed_amount": 450, # Below threshold 500
-        "claim_description": "Minor windshield chip repair",
-        "claim_date": "2025-05-28"
-    }
-    result_low_value = flow.run(claim_low_value, institution_id)
-    print("\n--- Low Value Claim Result ---")
-    print(json.dumps(result_low_value, indent=2))
-
-    # Example 2: High severity claim -> Escalated
-    claim_high_severity = {
-        "claim_id": "CLM-HIGH-002",
-        "policy_id": "POLICY_ACTIVE_001",
-        "claimed_amount": 8000,
-        "claim_description": "Major structural damage from fire", # High severity keyword
-        "claim_date": "2025-05-29"
-    }
-    result_high_severity = flow.run(claim_high_severity, institution_id)
-    print("\n--- High Severity Claim Result ---")
-    print(json.dumps(result_high_severity, indent=2))
-
-    # Example 3: Claim with expired policy -> Denied
-    claim_expired_policy = {
-        "claim_id": "CLM-EXPIRED-003",
-        "policy_id": "POLICY_EXPIRED_002", # Expired policy
-        "claimed_amount": 1200,
-        "claim_description": "Water damage in basement",
-        "claim_date": "2025-05-30"
-    }
-    result_expired_policy = flow.run(claim_expired_policy, institution_id)
-    print("\n--- Expired Policy Claim Result ---")
-    print(json.dumps(result_expired_policy, indent=2))
-
-    # Example 4: Claim with potential fraud flag -> Escalated
-    claim_fraud_flag = {
-        "claim_id": "CLM-FRAUD-004",
-        "policy_id": "POLICY_ACTIVE_003", # Policy with recent claims
-        "claimed_amount": 250, # Below auto-approve threshold
-        "claim_description": "Another small dent repair",
-        "claim_date": "2025-05-31"
-    }
-    result_fraud_flag = flow.run(claim_fraud_flag, institution_id)
-    print("\n--- Fraud Flag Claim Result ---")
-    print(json.dumps(result_fraud_flag, indent=2))
-
-    # Example 5: Standard claim, above auto-approve -> Escalated
-    claim_standard = {
-        "claim_id": "CLM-STD-005",
-        "policy_id": "POLICY_ACTIVE_001",
-        "claimed_amount": 750, # Above auto-approve, below high value
-        "claim_description": "Rear bumper replacement",
-        "claim_date": "2025-06-01"
-    }
-    result_standard = flow.run(claim_standard, institution_id)
-    print("\n--- Standard Escalation Claim Result ---")
-    print(json.dumps(result_standard, indent=2))
-
-def run_actuarial_example(config_agent, institution_id):
-    """Run example actuarial analysis for demonstration and testing."""
-    logger = audit_logger.get_logger("main")
-    logger.info(f"Running Actuarial Flow Example for {institution_id}")
-    print(f"\n--- Running Actuarial Flow Example for {institution_id} ---")
     
-    flow = ActuarialFlow(config_agent)
-
-    # Run the flow using the sample data file
-    data_source_info = {
-        "data_path": os.path.join(project_root, "data/sample_actuarial_input.json")
+    # Example claim data
+    claim_data = {
+        "claim_id": "CL-TEST-001",
+        "policy_id": "POL-123456",
+        "claimant_name": "Alice Example",
+        "incident_date": "2023-05-15",
+        "claim_amount": 5000,
+        "incident_description": "Water damage from burst pipe"
     }
-    result = flow.run(data_source_info, institution_id)
+    
+    # Process claim
+    result = flow.process_claim(claim_data)
+    
+    logger.info(f"Claims processing result: {result}")
 
-    print("\n--- Actuarial Flow Result ---")
-    print(json.dumps(result, indent=2))
 
-    # Optionally, read and print the generated markdown report
-    if result.get("status") in ["Success", "Partial"] and result.get("report_paths", {}).get("markdown"):
-        try:
-            md_path = result["report_paths"]["markdown"]
-            print(f"\n--- Generated Markdown Report ({md_path}) --- ")
-            # Ensure path is absolute for reading
-            if not os.path.isabs(md_path):
-                md_path = os.path.join(project_root, md_path)
-                
-            if os.path.exists(md_path):
-                with open(md_path, 'r') as f_report:
-                    print(f_report.read())
-            else:
-                print(f"Report file not found at: {md_path}")
-        except Exception as e:
-            print(f"\nError reading generated report: {e}")
+def run_actuarial_examples(config_agent, institution_id):
+    """Run example actuarial scenarios for demonstration and testing."""
+    logger.info(f"Running Actuarial Flow Examples for {institution_id}")
+    print(f"\n--- Running Actuarial Flow Examples for {institution_id} ---")
+    
+    # Initialize actuarial flow
+    flow = ActuarialFlow(config_agent)
+    
+    # Example actuarial calculation
+    result = flow.calculate_risk_model({
+        "age_group": "30-40",
+        "region": "Northeast",
+        "coverage_type": "comprehensive"
+    })
+    
+    logger.info(f"Actuarial calculation result: {result}")
+
 
 def main():
-    """Main entry point for the insurance AI system."""
-    # Set up command line argument parsing
-    parser = argparse.ArgumentParser(description="Run Insurance AI System Flows.")
-    parser.add_argument("--module", required=True, choices=["underwriting", "claims", "actuarial", "all"], 
-                        help="Which module flow to run.")
-    parser.add_argument("--institution", default="institution_a", 
-                        help="Institution ID to use for configuration.")
+    """Main entry point for the Insurance AI System."""
+    parser = argparse.ArgumentParser(description='Insurance AI System')
+    parser.add_argument('--institution', type=str, default='institution_a',
+                        help='Institution code to use')
+    parser.add_argument('--module', type=str, choices=['underwriting', 'claims', 'actuarial', 'all'],
+                        default='all', help='Module to run examples for')
+    parser.add_argument('--verbose', action='store_true',
+                        help='Enable verbose logging')
     args = parser.parse_args()
-
-    # Initialize logger
-    logger = audit_logger.get_logger("main")
-    logger.info(f"Starting Insurance AI System with module: {args.module}, institution: {args.institution}")
-
-    # Initialize configuration agent
-    config = ConfigAgent(config_dir=os.path.join(project_root, "config"))
-
-    # Run the requested module(s)
-    if args.module == "underwriting" or args.module == "all":
-        run_underwriting_examples(config, args.institution)
     
-    if args.module == "claims" or args.module == "all":
-        run_claims_examples(config, args.institution)
-
-    if args.module == "actuarial" or args.module == "all":
-        run_actuarial_example(config, args.institution)
+    # Set logging level based on verbosity
+    if args.verbose:
+        logging.getLogger().setLevel(logging.DEBUG)
     
-    logger.info(f"Completed running Insurance AI System modules: {args.module}")
+    try:
+        # Initialize configuration agent
+        config_agent = ConfigAgent(args.institution)
+        
+        if not config_agent.institution_id:
+            logger.error(f"Institution not found: {args.institution}")
+            return 1
+        
+        # Run examples based on module selection
+        if args.module in ['underwriting', 'all']:
+            run_underwriting_examples(config_agent, args.institution)
+        
+        if args.module in ['claims', 'all']:
+            run_claims_examples(config_agent, args.institution)
+        
+        if args.module in ['actuarial', 'all']:
+            run_actuarial_examples(config_agent, args.institution)
+        
+        return 0
+    except Exception as e:
+        logger.error(f"Error in main: {e}", exc_info=True)
+        return 1
+    finally:
+        # Close all database connections
+        close_all_connections()
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

@@ -1,157 +1,286 @@
-from ...agents.config_agent import ConfigAgent
-from ...agents.underwriting.applicant_intake_agent import ApplicantIntakeAgent
-from ...agents.underwriting.document_ocr_agent import DocumentOCRAgent
-from ...agents.underwriting.risk_scoring_agent import RiskScoringAgent
-from ...agents.underwriting.adaptive_questioning_agent import AdaptiveQuestioningAgent
-from ...agents.underwriting.feedback_trainer_agent import FeedbackTrainerAgent
-from typing import Dict, Any
+"""
+Underwriting flow module for the Insurance AI System.
+Handles underwriting decisions using PostgreSQL for data storage.
+"""
+
 import logging
+import uuid
+from typing import Dict, Any, Optional
+
+from db_connection import (
+    get_record_by_id,
+    get_records,
+    insert_record,
+    update_record,
+    execute_query
+)
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
 
 class UnderwritingFlow:
-    """Orchestrates the autonomous underwriting process."""
-
-    def __init__(self, config_agent: ConfigAgent):
-        self.config_agent = config_agent
-        self.logger = logging.getLogger("UnderwritingFlow")
-        # Instantiate agents
-        self.intake_agent = ApplicantIntakeAgent(config_agent)
-        self.ocr_agent = DocumentOCRAgent(config_agent)
-        self.scoring_agent = RiskScoringAgent(config_agent)
-        self.questioning_agent = AdaptiveQuestioningAgent(config_agent)
-        self.feedback_agent = FeedbackTrainerAgent(config_agent)
-        self.logger.info("UnderwritingFlow initialized with all required agents.")
-
-    def run(self, application_data: Dict[str, Any], institution_id: str) -> Dict[str, Any]:
-        """Runs the full underwriting flow for a given application.
-
-        Args:
-            application_data: The initial application data, including structured fields 
-                              and potentially unstructured document text.
-                              Requires an "applicant_id" for tracking.
-                              Example: {"applicant_id": "APP123", "full_name": "...", "document_text": "..."}
-            institution_id: The ID of the institution.
-
-        Returns:
-            A dictionary containing the final underwriting decision and status.
-            Example: {"applicant_id": "APP123", "status": "Complete"/"NeedsInfo", 
-                      "decision": "Approve"/"Deny"/"Modify Terms"/None, 
-                      "questions": [...], "rationale": "..."}
+    """
+    Handles the underwriting flow for insurance applications.
+    Replaces the previous JSON-based storage with PostgreSQL.
+    """
+    
+    def __init__(self, config_agent):
         """
-        applicant_id = application_data.get("applicant_id")
-        if not applicant_id:
-            self.logger.error("Missing applicant_id in application data. Aborting flow.")
-            return {"status": "Error", "message": "Missing applicant_id"}
-
-        self.logger.info(f"Starting underwriting flow for applicant {applicant_id}, institution {institution_id}.")
-
-        # 1. Intake and Initial Validation
-        intake_result = self.intake_agent.execute(application_data, institution_id)
-        current_data = intake_result.get("applicant_data", application_data)
-        current_data["applicant_id"] = applicant_id # Ensure ID persists
-
-        # 2. Document OCR (if applicable)
-        ocr_result = {"extracted_data": {}, "ocr_status": "not_run"}
-        if "document_text" in current_data and current_data["document_text"]:
-            ocr_result = self.ocr_agent.execute({"document_text": current_data["document_text"], "applicant_id": applicant_id}, institution_id)
-            # Merge extracted data - careful about overwriting existing fields if names clash
-            current_data.update(ocr_result.get("extracted_data", {}))
-        else:
-            self.logger.info(f"No document text found for applicant {applicant_id}. Skipping OCR.")
-
-        # 3. Check for missing info *after* initial intake and OCR
-        # Re-evaluate required fields against the combined data
-        required_fields = self.config_agent.get_setting(institution_id, "underwriting", "required_fields", default=[])
-        missing_fields_after_ocr = [field for field in required_fields if field not in current_data or not current_data[field]]
+        Initialize the UnderwritingFlow with a configuration agent.
         
-        questioning_result = self.questioning_agent.execute(
-            {"missing_fields": missing_fields_after_ocr, "applicant_id": applicant_id}, 
-            institution_id
-        )
-
-        if questioning_result.get("needs_more_info"):
-            self.logger.warning(f"Underwriting paused for applicant {applicant_id}. Needs more information.")
-            return {
-                "applicant_id": applicant_id,
-                "status": "NeedsInfo",
-                "decision": None,
-                "questions": questioning_result.get("questions", []),
-                "rationale": "Missing required information."
+        Args:
+            config_agent: Configuration agent instance
+        """
+        self.config_agent = config_agent
+        self.institution_id = config_agent.institution_id
+    
+    def process_application(self, application_id: str) -> Dict:
+        """
+        Process an insurance application for underwriting.
+        
+        Args:
+            application_id: Unique identifier for the application
+            
+        Returns:
+            Dictionary containing the underwriting decision and details
+        """
+        try:
+            # Get the application data
+            query = """
+                SELECT * FROM insurance_ai.applications
+                WHERE application_id = %(application_id)s
+            """
+            
+            results = execute_query(query, {'application_id': application_id})
+            
+            if not results:
+                logger.warning(f"Application not found: {application_id}")
+                return {'error': 'Application not found'}
+            
+            application = results[0]
+            application_data = application['application_data']
+            
+            # Get underwriting rules from configuration
+            underwriting_config = self.config_agent.get_module_configuration('underwriting')
+            
+            # Apply underwriting rules and calculate risk score
+            risk_score, decision_factors = self._calculate_risk_score(application_data, underwriting_config)
+            
+            # Determine decision based on risk score
+            decision = self._determine_decision(risk_score, underwriting_config)
+            
+            # Store the underwriting decision
+            decision_data = {
+                'application_id': application['id'],
+                'decision': decision,
+                'decision_factors': decision_factors,
+                'risk_score': risk_score,
+                'created_by': 'underwriting_flow'
             }
-
-        # 4. Risk Scoring (if all required info is present)
-        scoring_result = self.scoring_agent.execute({"applicant_data": current_data, "applicant_id": applicant_id}, institution_id)
-        decision = scoring_result.get("decision")
-        rationale = scoring_result.get("rationale")
-        score = scoring_result.get("score")
-
-        # 5. Feedback Logging
-        feedback_data = {
-            "applicant_id": applicant_id,
-            "decision": decision,
-            "rationale": rationale,
-            "score": score,
-            # 'feedback' field could be added later if human review occurs
-        }
-        self.feedback_agent.execute(feedback_data, institution_id)
-
-        self.logger.info(f"Underwriting flow completed for applicant {applicant_id}. Decision: {decision}")
-        return {
-            "applicant_id": applicant_id,
-            "status": "Complete",
-            "decision": decision,
-            "questions": [],
-            "rationale": rationale
-        }
-
-# Example Usage (for testing)
-# if __name__ == "__main__":
-#     config = ConfigAgent()
-#     flow = UnderwritingFlow(config)
-#     
-#     # Example application with enough data
-#     app_data_complete = {
-#         "applicant_id": "UW-TEST-001",
-#         "full_name": "Alice Example",
-#         "address": "123 Main St",
-#         "date_of_birth": "01/01/1990",
-#         "income": 80000,
-#         "credit_score": 720,
-#         "debt_to_income_ratio": 0.3,
-#         "address_location_tag": "SafeZoneC",
-#         "document_text": "Name: Alice Example\nDOB: 01/01/1990\nOther info..."
-#     }
-#     result_complete = flow.run(app_data_complete, "institution_a")
-#     print("\n--- Complete Application Result ---")
-#     print(json.dumps(result_complete, indent=2))
-# 
-#     # Example application missing data
-#     app_data_incomplete = {
-#         "applicant_id": "UW-TEST-002",
-#         "full_name": "Bob Test",
-#         "address": "456 Side St",
-#         # Missing DOB, income, credit_score
-#         "document_text": "Name: Bob Test"
-#     }
-#     result_incomplete = flow.run(app_data_incomplete, "institution_a")
-#     print("\n--- Incomplete Application Result ---")
-#     print(json.dumps(result_incomplete, indent=2))
-#
-#     # Example application with low score
-#     app_data_low_score = {
-#         "applicant_id": "UW-TEST-003",
-#         "full_name": "Charlie Risk",
-#         "address": "789 Danger Ave",
-#         "date_of_birth": "03/15/1985",
-#         "income": 50000,
-#         "credit_score": 580, # Below threshold
-#         "debt_to_income_ratio": 0.5, # Above threshold
-#         "address_location_tag": "FloodZoneA", # High risk
-#         "document_text": "Name: Charlie Risk\nDOB: 03/15/1985"
-#     }
-#     result_low_score = flow.run(app_data_low_score, "institution_a")
-#     print("\n--- Low Score Application Result ---")
-#     print(json.dumps(result_low_score, indent=2))
-
-# Need json for example usage
-import json
-
+            
+            insert_record('underwriting_decisions', decision_data)
+            
+            # Update application status based on decision
+            status_map = {
+                'approved': 'approved',
+                'rejected': 'rejected',
+                'referred': 'under_review',
+                'pending_information': 'incomplete'
+            }
+            
+            new_status = status_map.get(decision, 'under_review')
+            
+            query = """
+                UPDATE insurance_ai.applications
+                SET status = %(new_status)s
+                WHERE id = %(application_id)s
+            """
+            
+            execute_query(query, {
+                'new_status': new_status,
+                'application_id': application['id']
+            }, commit=True)
+            
+            # Log the underwriting decision
+            self.config_agent.log_audit_event(
+                'application',
+                str(application['id']),
+                'decision',
+                'underwriting_flow',
+                {
+                    'decision': decision,
+                    'risk_score': risk_score
+                }
+            )
+            
+            # Return the decision
+            return {
+                'application_id': application_id,
+                'decision': decision,
+                'risk_score': risk_score,
+                'decision_factors': decision_factors
+            }
+            
+        except Exception as e:
+            logger.error(f"Error processing application {application_id}: {e}")
+            return {'error': str(e)}
+    
+    def _calculate_risk_score(self, application_data: Dict, underwriting_config: Dict) -> tuple:
+        """
+        Calculate risk score based on application data and underwriting rules.
+        
+        Args:
+            application_data: Application data dictionary
+            underwriting_config: Underwriting configuration dictionary
+            
+        Returns:
+            Tuple of (risk_score, decision_factors)
+        """
+        # Default risk score
+        risk_score = 50.0
+        decision_factors = {}
+        
+        # Get risk factors from configuration
+        risk_factors = underwriting_config.get('risk_factors', {})
+        
+        # Apply risk factors
+        for factor, config in risk_factors.items():
+            if factor in application_data:
+                factor_value = application_data[factor]
+                factor_score = self._evaluate_factor(factor_value, config)
+                risk_score += factor_score
+                decision_factors[factor] = factor_score
+        
+        # Ensure risk score is within bounds
+        risk_score = max(0.0, min(100.0, risk_score))
+        
+        return risk_score, decision_factors
+    
+    def _evaluate_factor(self, factor_value: Any, factor_config: Dict) -> float:
+        """
+        Evaluate a single risk factor.
+        
+        Args:
+            factor_value: Value of the factor from application data
+            factor_config: Configuration for the factor
+            
+        Returns:
+            Score adjustment for the factor
+        """
+        factor_type = factor_config.get('type', 'string')
+        
+        if factor_type == 'numeric':
+            return self._evaluate_numeric_factor(factor_value, factor_config)
+        elif factor_type == 'categorical':
+            return self._evaluate_categorical_factor(factor_value, factor_config)
+        elif factor_type == 'boolean':
+            return self._evaluate_boolean_factor(factor_value, factor_config)
+        else:
+            return 0.0
+    
+    def _evaluate_numeric_factor(self, value: Any, config: Dict) -> float:
+        """Evaluate a numeric risk factor."""
+        try:
+            value = float(value)
+            ranges = config.get('ranges', [])
+            
+            for range_config in ranges:
+                min_val = range_config.get('min', float('-inf'))
+                max_val = range_config.get('max', float('inf'))
+                
+                if min_val <= value <= max_val:
+                    return range_config.get('score', 0.0)
+            
+            return 0.0
+        except (ValueError, TypeError):
+            return config.get('default_score', 0.0)
+    
+    def _evaluate_categorical_factor(self, value: Any, config: Dict) -> float:
+        """Evaluate a categorical risk factor."""
+        categories = config.get('categories', {})
+        return categories.get(str(value), config.get('default_score', 0.0))
+    
+    def _evaluate_boolean_factor(self, value: Any, config: Dict) -> float:
+        """Evaluate a boolean risk factor."""
+        if isinstance(value, bool):
+            return config.get('true_score', 0.0) if value else config.get('false_score', 0.0)
+        elif isinstance(value, str):
+            value_lower = value.lower()
+            if value_lower in ('true', 'yes', 'y', '1'):
+                return config.get('true_score', 0.0)
+            elif value_lower in ('false', 'no', 'n', '0'):
+                return config.get('false_score', 0.0)
+        
+        return config.get('default_score', 0.0)
+    
+    def _determine_decision(self, risk_score: float, underwriting_config: Dict) -> str:
+        """
+        Determine underwriting decision based on risk score.
+        
+        Args:
+            risk_score: Calculated risk score
+            underwriting_config: Underwriting configuration dictionary
+            
+        Returns:
+            Decision string: 'approved', 'rejected', 'referred', or 'pending_information'
+        """
+        thresholds = underwriting_config.get('decision_thresholds', {})
+        
+        if risk_score <= thresholds.get('approve_threshold', 30.0):
+            return 'approved'
+        elif risk_score >= thresholds.get('reject_threshold', 70.0):
+            return 'rejected'
+        elif risk_score >= thresholds.get('refer_threshold', 50.0):
+            return 'referred'
+        else:
+            return 'pending_information'
+    
+    def get_underwriting_decision(self, application_id: str) -> Optional[Dict]:
+        """
+        Get the underwriting decision for an application.
+        
+        Args:
+            application_id: Unique identifier for the application
+            
+        Returns:
+            Decision dictionary if found, None otherwise
+        """
+        try:
+            # First get the application to get its UUID
+            query = """
+                SELECT id FROM insurance_ai.applications
+                WHERE application_id = %(application_id)s
+            """
+            
+            app_results = execute_query(query, {'application_id': application_id})
+            
+            if not app_results:
+                logger.warning(f"Application not found: {application_id}")
+                return None
+            
+            app_uuid = app_results[0]['id']
+            
+            # Now get the decision
+            query = """
+                SELECT * FROM insurance_ai.underwriting_decisions
+                WHERE application_id = %(app_uuid)s
+                ORDER BY created_at DESC
+                LIMIT 1
+            """
+            
+            decision_results = execute_query(query, {'app_uuid': app_uuid})
+            
+            if decision_results:
+                return decision_results[0]
+            
+            logger.warning(f"No underwriting decision found for application: {application_id}")
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error getting underwriting decision for {application_id}: {e}")
+            return None

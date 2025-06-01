@@ -1,0 +1,18 @@
+"""
+Railway.com configuration file for PostgreSQL deployment.
+"""
+
+# This file configures the PostgreSQL database on Railway.com
+# Railway.com automatically provides environment variables for database connection
+
+# PostgreSQL Configuration
+POSTGRES_USER=${PGUSER}
+POSTGRES_PASSWORD=${PGPASSWORD}
+POSTGRES_DB=${PGDATABASE}
+
+# Application Configuration
+PORT=8000
+NODE_ENV=production
+
+# Enable automatic migrations on deploy
+ENABLE_AUTO_MIGRATE=true

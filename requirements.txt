@@ -1,4 +1,5 @@
 fastapi>=0.95.0
+sentry-sdk>=1.14.0
 uvicorn>=0.21.0
 pydantic>=1.10.7
 python-multipart>=0.0.6
@@ -18,3 +19,11 @@ Pillow>=9.5.0
 reportlab>=3.6.12
 markdown>=3.4.3
 jinja2>=3.1.2
+psycopg2-binary>=2.9.5
+SQLAlchemy>=2.0.0
+Flask>=2.2.0
+gunicorn>=20.1.0
+uuid>=1.30
+python-dotenv>=0.21.0
+structlog>=22.1.0
+pytest-cov>=4.0.0

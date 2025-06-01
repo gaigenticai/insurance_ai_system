@@ -1,227 +1,317 @@
-import json
-import os
-from typing import Any, Dict, Optional, Tuple
+"""
+Configuration agent module for the Insurance AI System.
+Handles loading and managing configuration data from PostgreSQL.
+"""
 
-# Import utility modules
-from utils.logging_utils import audit_logger
-from utils.config_utils import ConfigValidator
-from utils.error_utils import get_error_handler
+import logging
+import uuid
+from typing import Dict, Any, Optional
+
+from db_connection import (
+    get_record_by_id,
+    get_records,
+    insert_record,
+    update_record,
+    execute_query
+)
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
 
 class ConfigAgent:
     """
-    Production-grade configuration agent that loads and provides institution-specific configuration.
-    Includes validation, error handling, and audit logging.
+    Agent responsible for loading and managing configuration data.
+    Replaces the previous JSON-based configuration with PostgreSQL.
     """
-
-    def __init__(self, config_dir: str = "/home/ubuntu/insurance_ai_system/config"):
+    
+    def __init__(self, institution_code: str):
         """
-        Initialize the ConfigAgent with the specified configuration directory.
+        Initialize the ConfigAgent with an institution code.
         
         Args:
-            config_dir: Directory containing configuration files
+            institution_code: Unique code identifying the institution
         """
-        self.config_dir = config_dir
-        self.loaded_configs: Dict[str, Dict[str, Any]] = {}
-        
-        # Set up logging and error handling
-        self.logger = audit_logger.get_logger("ConfigAgent")
-        self.error_handler = get_error_handler(self.logger)
-        
-        self.logger.info(f"ConfigAgent initialized with config directory: {config_dir}")
-
-    def _load_config(self, institution_id: str) -> Dict[str, Any]:
-        """
-        Load and validate a configuration file for a given institution ID.
-        
-        Args:
-            institution_id: ID of the institution
-            
-        Returns:
-            Configuration dictionary
-            
-        Raises:
-            FileNotFoundError: If configuration file doesn't exist
-            ValueError: If configuration is invalid
-            RuntimeError: For other loading errors
-        """
-        config_path = os.path.join(self.config_dir, f"{institution_id}.json")
-        
-        # Check if file exists
-        if not os.path.exists(config_path):
-            error_msg = f"Configuration file not found for institution: {institution_id} at {config_path}"
-            self.logger.error(error_msg)
-            audit_logger.log_audit_event(
-                institution_id="system",
-                agent_name="ConfigAgent",
-                event_type="CONFIG_ERROR",
-                details={"error": error_msg, "institution_id": institution_id},
-                severity="ERROR"
-            )
-            raise FileNotFoundError(error_msg)
-        
+        self.institution_code = institution_code
+        self.institution_id = None
+        self.institution_data = None
+        self._load_institution()
+    
+    def _load_institution(self) -> None:
+        """Load institution data from the database."""
         try:
-            # Load configuration file
-            with open(config_path, 'r') as f:
-                config_data = json.load(f)
+            # Query the institution by code
+            institutions = get_records('institutions', {'code': self.institution_code})
             
-            # Validate institution ID
-            if config_data.get("institution_id") != institution_id:
-                error_msg = f"Institution ID mismatch in config file: {config_path}"
-                self.logger.error(error_msg)
-                raise ValueError(error_msg)
+            if not institutions:
+                logger.warning(f"Institution with code {self.institution_code} not found")
+                return
             
-            # Validate configuration structure
-            is_valid, validation_error = ConfigValidator.validate_institution_config(config_data)
-            if not is_valid:
-                error_msg = f"Invalid configuration for {institution_id}: {validation_error}"
-                self.logger.error(error_msg)
-                raise ValueError(error_msg)
-            
-            # Log successful load
-            self.logger.info(f"Successfully loaded configuration for {institution_id}")
-            audit_logger.log_audit_event(
-                institution_id=institution_id,
-                agent_name="ConfigAgent",
-                event_type="CONFIG_LOADED",
-                details={"config_path": config_path},
-                severity="INFO"
-            )
-            
-            return config_data
-            
-        except json.JSONDecodeError as e:
-            error_msg = f"Error decoding JSON configuration for {institution_id}: {e}"
-            self.logger.error(error_msg)
-            audit_logger.log_audit_event(
-                institution_id="system",
-                agent_name="ConfigAgent",
-                event_type="CONFIG_ERROR",
-                details={"error": error_msg, "institution_id": institution_id},
-                severity="ERROR"
-            )
-            raise ValueError(error_msg)
+            self.institution_data = institutions[0]
+            self.institution_id = self.institution_data['id']
+            logger.info(f"Loaded institution: {self.institution_code}")
             
         except Exception as e:
-            error_msg = f"Failed to load configuration for {institution_id}: {e}"
-            self.logger.error(error_msg)
-            audit_logger.log_audit_event(
-                institution_id="system",
-                agent_name="ConfigAgent",
-                event_type="CONFIG_ERROR",
-                details={"error": error_msg, "institution_id": institution_id},
-                severity="ERROR"
-            )
-            raise RuntimeError(error_msg)
-
-    def get_config(self, institution_id: str) -> Dict[str, Any]:
-        """
-        Retrieve the configuration for a specific institution, loading if necessary.
-        
-        Args:
-            institution_id: ID of the institution
-            
-        Returns:
-            Configuration dictionary
-        """
-        # Use error handler for safe execution
-        return self.error_handler.safe_execute(
-            func=self._get_config_internal,
-            args=(institution_id,),
-            context={"component": "ConfigAgent", "operation": "get_config", "institution_id": institution_id},
-            default_return={}
-        )
+            logger.error(f"Error loading institution {self.institution_code}: {e}")
+            raise
     
-    def _get_config_internal(self, institution_id: str) -> Dict[str, Any]:
-        """Internal method to get configuration with caching"""
-        if institution_id not in self.loaded_configs:
-            self.logger.info(f"Loading configuration for institution: {institution_id}")
-            self.loaded_configs[institution_id] = self._load_config(institution_id)
-        
-        return self.loaded_configs[institution_id]
-
-    def get_setting(self, institution_id: str, section: str, key: str, default: Any = None) -> Any:
+    def get_institution_setting(self, setting_key: str, default: Any = None) -> Any:
         """
-        Retrieve a specific setting from the configuration.
+        Get a specific institution setting.
         
         Args:
-            institution_id: ID of the institution
-            section: Configuration section name
-            key: Setting key within section
-            default: Default value if setting not found
+            setting_key: Key of the setting to retrieve
+            default: Default value if setting is not found
             
         Returns:
             Setting value or default
         """
-        config = self.get_config(institution_id)
-        return config.get(section, {}).get(key, default)
-
-    def get_branding(self, institution_id: str) -> Dict[str, Any]:
-        """
-        Retrieve branding settings.
+        if not self.institution_data:
+            return default
         
-        Args:
-            institution_id: ID of the institution
-            
-        Returns:
-            Branding configuration dictionary
-        """
-        return self.get_config(institution_id).get("branding", {})
-
-    def get_underwriting_rules(self, institution_id: str) -> Dict[str, Any]:
-        """
-        Retrieve underwriting rules.
-        
-        Args:
-            institution_id: ID of the institution
-            
-        Returns:
-            Underwriting rules dictionary
-        """
-        return self.get_config(institution_id).get("underwriting", {}).get("risk_rules", {})
-
-    def get_claims_rules(self, institution_id: str) -> Dict[str, Any]:
-        """
-        Retrieve claims rules and thresholds.
-        
-        Args:
-            institution_id: ID of the institution
-            
-        Returns:
-            Claims rules dictionary
-        """
-        return self.get_config(institution_id).get("claims", {})
-
-    def get_actuarial_settings(self, institution_id: str) -> Dict[str, Any]:
-        """
-        Retrieve actuarial analysis settings.
-        
-        Args:
-            institution_id: ID of the institution
-            
-        Returns:
-            Actuarial settings dictionary
-        """
-        return self.get_config(institution_id).get("actuarial", {})
+        settings = self.institution_data.get('settings', {})
+        return settings.get(setting_key, default)
     
-    def reload_config(self, institution_id: str) -> Tuple[bool, Optional[str]]:
+    def update_institution_setting(self, setting_key: str, value: Any) -> bool:
         """
-        Force reload of configuration for an institution.
+        Update a specific institution setting.
         
         Args:
-            institution_id: ID of the institution
+            setting_key: Key of the setting to update
+            value: New value for the setting
             
         Returns:
-            Tuple of (success, error_message)
+            True if successful, False otherwise
         """
+        if not self.institution_id:
+            logger.error("Cannot update settings: Institution not loaded")
+            return False
+        
         try:
-            if institution_id in self.loaded_configs:
-                del self.loaded_configs[institution_id]
+            # Get current settings
+            current_settings = self.institution_data.get('settings', {})
             
-            # This will trigger a reload
-            self.get_config(institution_id)
-            return True, None
+            # Update the specific setting
+            current_settings[setting_key] = value
+            
+            # Update in database
+            success = update_record(
+                'institutions',
+                self.institution_id,
+                {'settings': current_settings}
+            )
+            
+            if success:
+                # Update local cache
+                self.institution_data['settings'] = current_settings
+                logger.info(f"Updated institution setting: {setting_key}")
+                return True
+            
+            return False
             
         except Exception as e:
-            error_msg = f"Failed to reload configuration for {institution_id}: {e}"
-            self.logger.error(error_msg)
-            return False, error_msg
+            logger.error(f"Error updating institution setting {setting_key}: {e}")
+            return False
+    
+    def get_agent_configuration(self, agent_type: str) -> Dict:
+        """
+        Get configuration for a specific agent type.
+        
+        Args:
+            agent_type: Type of agent to get configuration for
+            
+        Returns:
+            Agent configuration dictionary
+        """
+        if not self.institution_id:
+            logger.error("Cannot get agent configuration: Institution not loaded")
+            return {}
+        
+        try:
+            # Query agent configuration
+            query = """
+                SELECT * FROM insurance_ai.agent_configurations
+                WHERE institution_id = %(institution_id)s AND agent_type = %(agent_type)s
+                AND active = TRUE
+            """
+            
+            results = execute_query(query, {
+                'institution_id': self.institution_id,
+                'agent_type': agent_type
+            })
+            
+            if results:
+                return results[0].get('configuration', {})
+            
+            logger.warning(f"No configuration found for agent type: {agent_type}")
+            return {}
+            
+        except Exception as e:
+            logger.error(f"Error getting agent configuration for {agent_type}: {e}")
+            return {}
+    
+    def update_agent_configuration(self, agent_type: str, configuration: Dict) -> bool:
+        """
+        Update configuration for a specific agent type.
+        
+        Args:
+            agent_type: Type of agent to update configuration for
+            configuration: New configuration dictionary
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        if not self.institution_id:
+            logger.error("Cannot update agent configuration: Institution not loaded")
+            return False
+        
+        try:
+            # Check if configuration exists
+            query = """
+                SELECT id FROM insurance_ai.agent_configurations
+                WHERE institution_id = %(institution_id)s AND agent_type = %(agent_type)s
+            """
+            
+            results = execute_query(query, {
+                'institution_id': self.institution_id,
+                'agent_type': agent_type
+            })
+            
+            if results:
+                # Update existing configuration
+                config_id = results[0]['id']
+                return update_record(
+                    'agent_configurations',
+                    config_id,
+                    {'configuration': configuration}
+                )
+            else:
+                # Create new configuration
+                insert_record('agent_configurations', {
+                    'institution_id': self.institution_id,
+                    'agent_type': agent_type,
+                    'configuration': configuration,
+                    'active': True
+                })
+                return True
+            
+        except Exception as e:
+            logger.error(f"Error updating agent configuration for {agent_type}: {e}")
+            return False
+    
+    def get_module_configuration(self, module_type: str) -> Dict:
+        """
+        Get configuration for a specific module type.
+        
+        Args:
+            module_type: Type of module to get configuration for
+            
+        Returns:
+            Module configuration dictionary
+        """
+        if not self.institution_id:
+            logger.error("Cannot get module configuration: Institution not loaded")
+            return {}
+        
+        try:
+            # Query module configuration
+            query = """
+                SELECT * FROM insurance_ai.module_configurations
+                WHERE institution_id = %(institution_id)s AND module_type = %(module_type)s
+                AND active = TRUE
+            """
+            
+            results = execute_query(query, {
+                'institution_id': self.institution_id,
+                'module_type': module_type
+            })
+            
+            if results:
+                return results[0].get('configuration', {})
+            
+            logger.warning(f"No configuration found for module type: {module_type}")
+            return {}
+            
+        except Exception as e:
+            logger.error(f"Error getting module configuration for {module_type}: {e}")
+            return {}
+    
+    def update_module_configuration(self, module_type: str, configuration: Dict) -> bool:
+        """
+        Update configuration for a specific module type.
+        
+        Args:
+            module_type: Type of module to update configuration for
+            configuration: New configuration dictionary
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        if not self.institution_id:
+            logger.error("Cannot update module configuration: Institution not loaded")
+            return False
+        
+        try:
+            # Check if configuration exists
+            query = """
+                SELECT id FROM insurance_ai.module_configurations
+                WHERE institution_id = %(institution_id)s AND module_type = %(module_type)s
+            """
+            
+            results = execute_query(query, {
+                'institution_id': self.institution_id,
+                'module_type': module_type
+            })
+            
+            if results:
+                # Update existing configuration
+                config_id = results[0]['id']
+                return update_record(
+                    'module_configurations',
+                    config_id,
+                    {'configuration': configuration}
+                )
+            else:
+                # Create new configuration
+                insert_record('module_configurations', {
+                    'institution_id': self.institution_id,
+                    'module_type': module_type,
+                    'configuration': configuration,
+                    'active': True
+                })
+                return True
+            
+        except Exception as e:
+            logger.error(f"Error updating module configuration for {module_type}: {e}")
+            return False
+    
+    def log_audit_event(self, entity_type: str, entity_id: str, action: str, actor: str, details: Dict = None) -> bool:
+        """
+        Log an audit event.
+        
+        Args:
+            entity_type: Type of entity (application, claim, etc.)
+            entity_id: ID of the entity
+            action: Action performed (create, read, update, delete, process, decision)
+            actor: Actor who performed the action
+            details: Additional details about the action
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            insert_record('audit_logs', {
+                'entity_type': entity_type,
+                'entity_id': entity_id,
+                'action': action,
+                'actor': actor,
+                'details': details or {}
+            })
+            return True
+        except Exception as e:
+            logger.error(f"Error logging audit event: {e}")
+            return False
