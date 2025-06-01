@@ -264,6 +264,8 @@ def get_records(table: str, conditions: Dict = None, order_by: str = None, limit
     
     with get_db_cursor() as cursor:
         logger.info(f"Executing query: {query.as_string(cursor)} with params: {params}")
+        logger.info(f"QUERY: {query.as_string(cursor)}")
+        logger.info(f"PARAMS: {params}")
 
         if not params:
             cursor.execute(query.as_string(cursor))
