@@ -6,7 +6,7 @@ Provides connection pooling and management for PostgreSQL on Railway.com.
 import os
 import logging
 from contextlib import contextmanager
-from typing import Generator, Any, Dict
+from typing import Generator, Any, Dict, Optional
 
 import psycopg2
 from psycopg2.pool import SimpleConnectionPool
