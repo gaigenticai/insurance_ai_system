@@ -230,6 +230,8 @@ def get_records(table: str, conditions: Dict = None, order_by: str = None, limit
     if conditions:
         where_clauses = []
         for i, (col, val) in enumerate(conditions.items()):
+            if val is None:
+                continue  # Skip missing conditions
             param_name = f"param_{i}"
             where_clauses.append(sql.SQL("{} = %({})s").format(
                 sql.Identifier(col),
@@ -250,7 +252,10 @@ def get_records(table: str, conditions: Dict = None, order_by: str = None, limit
     query = sql.SQL("").join(query_parts)
     
     with get_db_cursor() as cursor:
-        cursor.execute(query.as_string(cursor), params)
+        if not params:
+            cursor.execute(query.as_string(cursor))
+        else:
+            cursor.execute(query.as_string(cursor), params)
         return cursor.fetchall()
 
 
