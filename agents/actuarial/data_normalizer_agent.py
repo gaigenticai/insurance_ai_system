@@ -1,4 +1,4 @@
-from ...base.base_agent import BaseAgent
+from base.base_agent import BaseAgent
 from typing import Any, Dict, List
 import json
 import os
