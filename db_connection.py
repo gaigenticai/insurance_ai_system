@@ -235,7 +235,7 @@ def get_records(table: str, conditions: Optional[Dict[str, Any]] = None, schema:
             if val is None:
                 continue  # prevent incomplete placeholders
             param_name = f"param_{i}"
-            where_clauses.append(sql.SQL("{} = %({})s").format(
+            where_clauses.append(sql.SQL("{} = {}").format(
                 sql.Identifier(col),
                 sql.Placeholder(param_name)
             ))
