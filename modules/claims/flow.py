@@ -1,10 +1,10 @@
-from ...agents.config_agent import ConfigAgent
-from ...agents.claims.claim_triage_agent import ClaimTriageAgent
-from ...agents.claims.policy_verifier_agent import PolicyVerifierAgent
-from ...agents.claims.fraud_detector_agent import FraudDetectorAgent
-from ...agents.claims.auto_resolution_agent import AutoResolutionAgent
-from ...agents.claims.escalation_agent import EscalationAgent
-from ...agents.claims.ethics_logger_agent import EthicsLoggerAgent
+from agents.config_agent import ConfigAgent
+from agents.claims.claim_triage_agent import ClaimTriageAgent
+from agents.claims.policy_verifier_agent import PolicyVerifierAgent
+from agents.claims.fraud_detector_agent import FraudDetectorAgent
+from agents.claims.auto_resolution_agent import AutoResolutionAgent
+from agents.claims.escalation_agent import EscalationAgent
+from agents.claims.ethics_logger_agent import EthicsLoggerAgent
 from typing import Dict, Any
 import logging
 import json # For ethics logging data
