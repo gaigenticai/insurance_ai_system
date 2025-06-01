@@ -12,6 +12,9 @@ import psycopg2
 from psycopg2.pool import SimpleConnectionPool
 from psycopg2.extras import RealDictCursor, DictCursor, Json
 from psycopg2 import sql
+import logging
+logger = logging.getLogger(__name__)
+
 
 # Configure logging
 logging.basicConfig(
@@ -197,6 +200,7 @@ def get_record_by_id(table: str, id_value: str, id_column: str = "id") -> Dict:
     Returns:
         Dictionary containing the record data
     """
+    params = {}
     query = sql.SQL("SELECT * FROM {}.{} WHERE {} = %(id_value)s").format(
         sql.Identifier(DB_SCHEMA),
         sql.Identifier(table),
@@ -204,8 +208,15 @@ def get_record_by_id(table: str, id_value: str, id_column: str = "id") -> Dict:
     )
     
     with get_db_cursor() as cursor:
-        cursor.execute(query.as_string(cursor), {"id_value": id_value})
-        return cursor.fetchone()
+    # Log the SQL query and params before execution
+        logger.info(f"Executing query: {query.as_string(cursor)} with params: {params}")
+
+        if not params:
+            cursor.execute(query.as_string(cursor))
+        else:
+            cursor.execute(query.as_string(cursor), params)
+            
+        return cursor.fetchall()
 
 
 def get_records(table: str, conditions: Dict = None, order_by: str = None, limit: int = None) -> list:
@@ -226,12 +237,11 @@ def get_records(table: str, conditions: Dict = None, order_by: str = None, limit
         sql.Identifier(table)
     )]
     params = {}
-    
     if conditions:
         where_clauses = []
         for i, (col, val) in enumerate(conditions.items()):
             if val is None:
-                continue  # Skip missing conditions
+                continue  # skip None values to prevent broken placeholders
             param_name = f"param_{i}"
             where_clauses.append(sql.SQL("{} = %({})s").format(
                 sql.Identifier(col),
