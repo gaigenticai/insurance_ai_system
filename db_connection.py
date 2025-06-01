@@ -241,17 +241,18 @@ def get_records(table: str, conditions: Dict = None, order_by: str = None, limit
         where_clauses = []
         for i, (col, val) in enumerate(conditions.items()):
             if val is None:
-                continue  # skip None values to prevent broken placeholders
+                continue  # Skip keys with None values to avoid malformed SQL
             param_name = f"param_{i}"
             where_clauses.append(sql.SQL("{} = %({})s").format(
                 sql.Identifier(col),
                 sql.Placeholder(param_name)
             ))
             params[param_name] = val
-        
-        query_parts.append(sql.SQL(" WHERE {}").format(
-            sql.SQL(" AND ").join(where_clauses)
-        ))
+
+        if where_clauses:
+            query_parts.append(sql.SQL(" WHERE {}").format(
+                sql.SQL(" AND ").join(where_clauses)
+            ))
     
     if order_by:
         query_parts.append(sql.SQL(" ORDER BY {}").format(sql.Identifier(order_by)))
@@ -262,10 +263,13 @@ def get_records(table: str, conditions: Dict = None, order_by: str = None, limit
     query = sql.SQL("").join(query_parts)
     
     with get_db_cursor() as cursor:
+        logger.info(f"Executing query: {query.as_string(cursor)} with params: {params}")
+
         if not params:
             cursor.execute(query.as_string(cursor))
         else:
             cursor.execute(query.as_string(cursor), params)
+
         return cursor.fetchall()
 
 
