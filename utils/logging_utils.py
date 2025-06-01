@@ -31,6 +31,10 @@ audit_logger.addHandler(file_handler)
 class AuditLogger:
     """Audit logger for the Insurance AI System."""
     
+    def get_logger(self, name: str) -> logging.Logger:
+        """Return a logger scoped to the given agent/component name."""
+        return logging.getLogger(name)
+    
     @staticmethod
     def log_audit_event(institution_id: str, agent_name: str, event_type: str, 
                         details: Dict[str, Any], severity: str = "INFO") -> None:
