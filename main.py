@@ -18,8 +18,8 @@ sys.path.insert(0, os.path.dirname(project_root))
 from db_connection import execute_query, close_all_connections
 
 # Import original modules and agents
-from config_agent import ConfigAgent
-from underwriting_flow import UnderwritingFlow
+from agents.config_agent import ConfigAgent
+from modules.underwriting import UnderwritingFlow
 from modules.claims.flow import ClaimsFlow
 from modules.actuarial.flow import ActuarialFlow
 from application_manager import ApplicationManager

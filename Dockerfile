@@ -7,7 +7,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the application code
-COPY . .
+COPY . /app
 
 # Create necessary directories
 RUN mkdir -p /app/logs
@@ -20,7 +20,7 @@ ENV CONFIG_DIR=/app/insurance_ai_system/config
 EXPOSE 8000
 
 # Command to run the application
-CMD ["python", "insurance_ai_system/main.py", "--module", "all", "--institution", "institution_a"]
+CMD ["python", "main.py"]
 
 # For production deployment, you might want to use gunicorn or uvicorn
 # CMD ["gunicorn", "-b", "0.0.0.0:8000", "insurance_ai_system.api:app"]
