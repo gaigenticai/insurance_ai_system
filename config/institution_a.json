@@ -1,0 +1,47 @@
+{
+  "institution_id": "institution_a",
+  "branding": {
+    "name": "Alpha Insurance Inc.",
+    "logo_url": "https://example.com/logos/alpha_logo.png",
+    "email_template_header": "From Alpha Insurance:",
+    "report_style": "classic"
+  },
+  "underwriting": {
+    "risk_rules": {
+      "min_credit_score": 650,
+      "max_debt_to_income_ratio": 0.4,
+      "high_risk_locations": ["FloodZoneA", "WildfireAreaB"],
+      "auto_approve_age_range": [30, 60]
+    },
+    "required_fields": ["full_name", "address", "date_of_birth", "income", "credit_score"],
+    "ocr_extraction_map": {
+      "applicant_name_pattern": "Name: (.*)",
+      "dob_pattern": "DOB: (\\d{2}/\\d{2}/\\d{4})"
+    }
+  },
+  "claims": {
+    "triage_rules": {
+      "high_severity_keywords": ["fire", "total loss", "structural damage"],
+      "low_value_threshold": 1000
+    },
+    "auto_resolution_threshold": 500,
+    "fraud_rules": {
+      "multiple_claims_window_days": 30,
+      "suspicious_activity_flags": ["recent policy change", "prior fraud history"]
+    }
+  },
+  "actuarial": {
+    "trend_analysis_params": {
+      "moving_average_window": 12
+    },
+    "benchmarks": {
+      "loss_ratio_target": 0.65,
+      "claim_processing_time_days": 5
+    },
+    "reporting_segments": ["geography", "product_line"]
+  },
+  "localization": {
+    "language": "en-US"
+  }
+}
+
