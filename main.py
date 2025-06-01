@@ -19,7 +19,7 @@ from db_connection import execute_query, close_all_connections
 
 # Import original modules and agents
 from agents.config_agent import ConfigAgent
-from modules.underwriting import UnderwritingFlow
+from modules.underwriting.flow import UnderwritingFlow
 from modules.claims.flow import ClaimsFlow
 from modules.actuarial.flow import ActuarialFlow
 from application_manager import ApplicationManager
