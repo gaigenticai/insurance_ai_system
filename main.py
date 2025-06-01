@@ -9,11 +9,11 @@ import sys
 project_root = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(project_root))
 
-from insurance_ai_system.agents.config_agent import ConfigAgent
-from insurance_ai_system.modules.underwriting.flow import UnderwritingFlow
-from insurance_ai_system.modules.claims.flow import ClaimsFlow
-from insurance_ai_system.modules.actuarial.flow import ActuarialFlow
-from insurance_ai_system.utils.logging_utils import audit_logger
+from agents.config_agent import ConfigAgent
+from modules.underwriting.flow import UnderwritingFlow
+from modules.claims.flow import ClaimsFlow
+from modules.actuarial.flow import ActuarialFlow
+from utils.logging_utils import audit_logger
 
 def run_underwriting_examples(config_agent, institution_id):
     """Run example underwriting scenarios for demonstration and testing."""
