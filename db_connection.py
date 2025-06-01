@@ -219,29 +219,21 @@ def get_record_by_id(table: str, id_value: str, id_column: str = "id") -> Dict:
         return cursor.fetchall()
 
 
-def get_records(table: str, conditions: Dict = None, order_by: str = None, limit: int = None) -> list:
-    """
-    Get records from a table with optional filtering.
-    
-    Args:
-        table: Table name
-        conditions: Dictionary of column names and values for WHERE clause
-        order_by: Column name to order by
-        limit: Maximum number of records to return
-        
-    Returns:
-        List of records
-    """
+def get_records(table: str, conditions: Optional[Dict[str, Any]] = None, schema: str = DB_SCHEMA) -> list:
+    """Retrieve records from a table based on optional conditions."""
+    from psycopg2 import sql
+
+    params = {}
     query_parts = [sql.SQL("SELECT * FROM {}.{}").format(
-        sql.Identifier(DB_SCHEMA),
+        sql.Identifier(schema),
         sql.Identifier(table)
     )]
-    params = {}
+
     if conditions:
         where_clauses = []
         for i, (col, val) in enumerate(conditions.items()):
             if val is None:
-                continue  # Skip keys with None values to avoid malformed SQL
+                continue  # prevent incomplete placeholders
             param_name = f"param_{i}"
             where_clauses.append(sql.SQL("{} = %({})s").format(
                 sql.Identifier(col),
@@ -253,25 +245,15 @@ def get_records(table: str, conditions: Dict = None, order_by: str = None, limit
             query_parts.append(sql.SQL(" WHERE {}").format(
                 sql.SQL(" AND ").join(where_clauses)
             ))
-    
-    if order_by:
-        query_parts.append(sql.SQL(" ORDER BY {}").format(sql.Identifier(order_by)))
-    
-    if limit:
-        query_parts.append(sql.SQL(" LIMIT {}").format(sql.Literal(limit)))
-    
+
     query = sql.SQL("").join(query_parts)
-    
+
     with get_db_cursor() as cursor:
         logger.info(f"Executing query: {query.as_string(cursor)} with params: {params}")
-        logger.info(f"QUERY: {query.as_string(cursor)}")
-        logger.info(f"PARAMS: {params}")
-
         if not params:
             cursor.execute(query.as_string(cursor))
         else:
             cursor.execute(query.as_string(cursor), params)
-
         return cursor.fetchall()
 
 
