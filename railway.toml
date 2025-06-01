@@ -1,6 +1,3 @@
-"""
-Railway.com configuration file for PostgreSQL deployment.
-"""
 
 # This file configures the PostgreSQL database on Railway.com
 # Railway.com automatically provides environment variables for database connection
