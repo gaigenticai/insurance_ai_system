@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 # Get database connection details from environment variables
 # Railway.com automatically provides these environment variables
-DB_HOST = os.environ.get('DATABASE_URL', 'localhost')
+DB_HOST = os.environ.get('DB_HOST', 'localhost')
 DB_PORT = os.environ.get('PGPORT', '5432')
 DB_NAME = os.environ.get('PGDATABASE', 'insurance_ai')
 DB_USER = os.environ.get('PGUSER', 'postgres')
