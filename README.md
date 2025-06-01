@@ -1,123 +1,128 @@
-# Insurance AI System
+# README: Insurance AI System - Enhanced Production Platform
 
-A fully modular, production-grade Agentic AI system for the insurance industry, capable of handling:
+## Overview
 
-1. Dynamic Underwriting  
-2. Claims Automation  
-3. Actuarial Analysis & Reporting  
-4. Full Multi-Tenant and Branding Configuration
+This repository contains the enhanced Insurance AI System, transformed from a CLI-based application into a production-ready API + UI platform. The system maintains all the original functionality while adding new features for asynchronous processing, event-driven architecture, and a web-based user interface.
 
-## System Architecture
+## Key Features
 
-The system is built with a modular architecture, where each module consists of specialized agents that work together to accomplish complex insurance tasks:
+- **Production-Grade API**: FastAPI implementation with proper schemas, validation, and OpenAPI documentation
+- **Asynchronous Processing**: Celery with Redis for task queuing and background processing
+- **Event-Driven Architecture**: Redis Streams for inter-agent communication with defined event contracts
+- **Web UI**: Streamlit application for institution selection, data input, and real-time status tracking
+- **Database Integration**: PostgreSQL with dynamic schema support and comprehensive migrations
+- **Docker Support**: Multi-stage builds and Docker Compose for local development and production
+- **Railway.com Deployment**: Ready-to-deploy configuration for Railway.com
 
-- **Underwriting Module**: Handles risk evaluation for new applications
-- **Claims Module**: Manages claims processing and resolution
-- **Actuarial Module**: Performs data analysis and reporting
-- **Configuration System**: Provides institution-specific settings and branding
+## Architecture
 
-Each agent is designed to be production-ready with proper error handling, audit logging, and configuration validation.
+The system is composed of the following components:
 
-## Features
-
-- **Production-Grade Implementation**: No placeholders, stubs, or TODOs
-- **Multi-Tenant Support**: Configurable for different institutions
-- **Comprehensive Audit Logging**: All decisions and actions are logged
-- **Robust Error Handling**: Graceful error recovery and reporting
-- **Branding Integration**: Institution-specific branding throughout
-- **API Access**: RESTful API for all system functions
-- **Dockerized Deployment**: One-click deployment via Docker
+1. **API Server**: FastAPI application exposing endpoints for underwriting, claims, and actuarial analysis
+2. **Celery Workers**: Background task processing for compute-intensive operations
+3. **Event Broker**: Redis Streams for inter-agent communication
+4. **Database**: PostgreSQL for structured data storage
+5. **Web UI**: Streamlit application for user interaction
 
 ## Getting Started
 
 ### Prerequisites
 
-- Python 3.9+
-- Docker (for containerized deployment)
+- Docker and Docker Compose
+- Python 3.10+
+- PostgreSQL 14+
+- Redis 7+
 
-### Installation
+### Local Development
 
 1. Clone the repository
-2. Install dependencies:
-   ```
-   pip install -r requirements.txt
-   ```
+2. Set up environment variables (see `.env.example`)
+3. Run the Docker Compose setup:
 
-### Running the System
-
-#### Command Line Interface
-
-Run a specific module:
-```
-python insurance_ai_system/main.py --module underwriting --institution institution_a
+```bash
+docker-compose up -d
 ```
 
-Run all modules:
-```
-python insurance_ai_system/main.py --module all --institution institution_a
+4. Access the API at http://localhost:8080
+5. Access the UI at http://localhost:8501
+
+### Running Tests
+
+```bash
+python -m pytest tests.py
 ```
 
-#### API Server
+## Deployment
 
-Start the API server:
-```
-python insurance_ai_system/api.py --host 0.0.0.0 --port 8000
-```
+### Railway.com Deployment
 
-### Docker Deployment
+1. Push the code to a Git repository
+2. Connect the repository to Railway.com
+3. Set the required environment variables
+4. Deploy the application
 
-Build the Docker image:
-```
-docker build -t insurance-ai-system .
-```
+## Environment Variables
 
-Run the container:
-```
-docker run -p 8000:8000 insurance-ai-system
-```
-
-## Configuration
-
-Institution-specific configuration is stored in JSON files in the `config` directory. Each institution has its own configuration file with settings for underwriting rules, claims thresholds, actuarial parameters, and branding.
+| Variable | Description | Default |
+|----------|-------------|---------|
+| POSTGRES_HOST | PostgreSQL host | localhost |
+| POSTGRES_PORT | PostgreSQL port | 5432 |
+| POSTGRES_DB | PostgreSQL database name | insurance_ai |
+| POSTGRES_USER | PostgreSQL username | postgres |
+| POSTGRES_PASSWORD | PostgreSQL password | postgres |
+| DB_SCHEMA | Database schema name | insurance_ai |
+| REDIS_HOST | Redis host | localhost |
+| REDIS_PORT | Redis port | 6379 |
+| REDIS_PASSWORD | Redis password | |
+| REDIS_DB | Redis database number | 0 |
+| API_PORT | API server port | 8080 |
+| ALLOWED_ORIGINS | CORS allowed origins | * |
 
 ## API Documentation
 
-The system provides a RESTful API for all functionality:
+Once the API is running, access the OpenAPI documentation at:
 
-- `POST /underwriting/evaluate`: Evaluate an insurance application
-- `POST /claims/process`: Process an insurance claim
-- `POST /actuarial/analyze`: Analyze actuarial data
+- Swagger UI: http://localhost:8080/docs
 
-All API endpoints require an `X-Institution-ID` header to specify the institution context.
-
-## Project Structure
+## Directory Structure
 
 ```
 insurance_ai_system/
-├── agents/                 # Agent implementations
-│   ├── actuarial/          # Actuarial analysis agents
-│   ├── base/               # Base agent classes
-│   ├── claims/             # Claims processing agents
-│   ├── underwriting/       # Underwriting agents
-│   └── config_agent.py     # Configuration agent
-├── config/                 # Institution configuration files
-├── data/                   # Sample data files
-├── docs/                   # Documentation
-├── logs/                   # Audit and system logs
-├── modules/                # Module flow implementations
-│   ├── actuarial/
-│   ├── claims/
-│   └── underwriting/
-├── utils/                  # Utility modules
-│   ├── branding_utils.py   # Branding utilities
-│   ├── config_utils.py     # Configuration utilities
-│   ├── error_utils.py      # Error handling utilities
-│   └── logging_utils.py    # Audit logging utilities
-├── api.py                  # API server
-├── main.py                 # Command-line interface
-└── requirements.txt        # Python dependencies
+├── api.py                 # FastAPI application
+├── celery_app.py          # Celery configuration
+├── db_connection.py       # Database connection module
+├── db_migrations.py       # Database migrations
+├── docker-compose.yml     # Docker Compose configuration
+├── Dockerfile             # Docker build configuration
+├── event_listener.py      # Event listener service
+├── events.py              # Event broker module
+├── main.py                # Main entry point
+├── railway.json           # Railway.com configuration
+├── requirements.txt       # Python dependencies
+├── schemas.py             # Pydantic schemas
+├── tasks.py               # Celery tasks
+├── tests.py               # Test suite
+├── ui/                    # Streamlit UI
+│   └── streamlit_app.py   # Streamlit application
+└── utils/                 # Utility modules
+    └── logging_utils.py   # Logging utilities
 ```
 
-## License
+## Original Features Preserved
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+- Underwriting flow with risk assessment
+- Claims processing with fraud detection
+- Actuarial analysis with risk modeling
+- Agent-based architecture
+- Configuration management
+- Audit logging
+
+## New Features Added
+
+- Asynchronous task processing
+- Event-driven architecture
+- Web-based user interface
+- API with OpenAPI documentation
+- Docker and Docker Compose support
+- Railway.com deployment configuration
+- Comprehensive test suite

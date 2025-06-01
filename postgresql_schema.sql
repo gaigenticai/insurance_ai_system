@@ -4,7 +4,10 @@
 
 -- Enable UUID extension for unique identifiers
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE SCHEMA IF NOT EXISTS insurance_ai;
 
+-- Set search path to use the schema
+SET search_path TO insurance_ai, public;
 -- Create schema for insurance AI system
 -- Institutions table - stores institution configurations
 CREATE TABLE insurance_ai.institutions (

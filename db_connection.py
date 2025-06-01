@@ -22,12 +22,12 @@ logger = logging.getLogger(__name__)
 
 # Get database connection details from environment variables
 # Railway.com automatically provides these environment variables
-DB_HOST = os.environ.get('DB_HOST', 'localhost')
-DB_PORT = os.environ.get('PGPORT', '5432')
-DB_NAME = os.environ.get('PGDATABASE', 'insurance_ai')
-DB_USER = os.environ.get('PGUSER', 'postgres')
-DB_PASSWORD = os.environ.get('PGPASSWORD', 'postgres')
-DB_SCHEMA = 'insurance_ai'
+DB_HOST = os.environ.get('POSTGRES_HOST', 'localhost')
+DB_PORT = os.environ.get('POSTGRES_PORT', '5432')
+DB_NAME = os.environ.get('POSTGRES_DB', 'insurance_ai')
+DB_USER = os.environ.get('POSTGRES_USER', 'postgres')
+DB_PASSWORD = os.environ.get('POSTGRES_PASSWORD', 'postgres')
+DB_SCHEMA = os.getenv("DB_SCHEMA", "insurance_ai")
 
 # Connection pool settings
 MIN_CONNECTIONS = 1
@@ -135,8 +135,9 @@ def insert_record(table: str, data: Dict, returning: str = "id") -> Dict:
     
     placeholders = [f'%({col})s' for col in columns]
     
-    query = sql.SQL("INSERT INTO {} ({}) VALUES ({}) RETURNING {}").format(
-        sql.Identifier(DB_SCHEMA, table),
+    query = sql.SQL("INSERT INTO {}.{} ({}) VALUES ({}) RETURNING {}").format(
+        sql.Identifier(DB_SCHEMA),
+        sql.Identifier(table),
         sql.SQL(', ').join(map(sql.Identifier, columns)),
         sql.SQL(', ').join(sql.Placeholder(col) for col in columns),
         sql.Identifier(returning)
@@ -170,16 +171,17 @@ def update_record(table: str, id_value: str, data: Dict, id_column: str = "id") 
     
     set_items = [f"{col} = %({col})s" for col in data.keys()]
     
-    query = f"""
-        UPDATE {DB_SCHEMA}.{table}
-        SET {', '.join(set_items)}
-        WHERE {id_column} = %(id_value)s
-    """
+    query = sql.SQL("UPDATE {}.{} SET {} WHERE {} = %(id_value)s").format(
+        sql.Identifier(DB_SCHEMA),
+        sql.Identifier(table),
+        sql.SQL(', ').join(sql.SQL(f"{col} = %({col})s") for col in data.keys()),
+        sql.Identifier(id_column)
+    )
     
     params = {**data, "id_value": id_value}
     
     with get_db_cursor(commit=True) as cursor:
-        cursor.execute(query, params)
+        cursor.execute(query.as_string(cursor), params)
         return cursor.rowcount > 0
 
 
@@ -195,13 +197,14 @@ def get_record_by_id(table: str, id_value: str, id_column: str = "id") -> Dict:
     Returns:
         Dictionary containing the record data
     """
-    query = f"""
-        SELECT * FROM {DB_SCHEMA}.{table}
-        WHERE {id_column} = %(id_value)s
-    """
+    query = sql.SQL("SELECT * FROM {}.{} WHERE {} = %(id_value)s").format(
+        sql.Identifier(DB_SCHEMA),
+        sql.Identifier(table),
+        sql.Identifier(id_column)
+    )
     
     with get_db_cursor() as cursor:
-        cursor.execute(query, {"id_value": id_value})
+        cursor.execute(query.as_string(cursor), {"id_value": id_value})
         return cursor.fetchone()
 
 
@@ -218,26 +221,36 @@ def get_records(table: str, conditions: Dict = None, order_by: str = None, limit
     Returns:
         List of records
     """
-    query = f"SELECT * FROM {DB_SCHEMA}.{table}"
+    query_parts = [sql.SQL("SELECT * FROM {}.{}").format(
+        sql.Identifier(DB_SCHEMA),
+        sql.Identifier(table)
+    )]
     params = {}
     
     if conditions:
         where_clauses = []
         for i, (col, val) in enumerate(conditions.items()):
             param_name = f"param_{i}"
-            where_clauses.append(f"{col} = %({param_name})s")
+            where_clauses.append(sql.SQL("{} = %({})s").format(
+                sql.Identifier(col),
+                sql.Placeholder(param_name)
+            ))
             params[param_name] = val
         
-        query += f" WHERE {' AND '.join(where_clauses)}"
+        query_parts.append(sql.SQL(" WHERE {}").format(
+            sql.SQL(" AND ").join(where_clauses)
+        ))
     
     if order_by:
-        query += f" ORDER BY {order_by}"
+        query_parts.append(sql.SQL(" ORDER BY {}").format(sql.Identifier(order_by)))
     
     if limit:
-        query += f" LIMIT {limit}"
+        query_parts.append(sql.SQL(" LIMIT {}").format(sql.Literal(limit)))
+    
+    query = sql.SQL("").join(query_parts)
     
     with get_db_cursor() as cursor:
-        cursor.execute(query, params)
+        cursor.execute(query.as_string(cursor), params)
         return cursor.fetchall()
 
 
@@ -253,13 +266,14 @@ def delete_record(table: str, id_value: str, id_column: str = "id") -> bool:
     Returns:
         True if successful, False otherwise
     """
-    query = f"""
-        DELETE FROM {DB_SCHEMA}.{table}
-        WHERE {id_column} = %(id_value)s
-    """
+    query = sql.SQL("DELETE FROM {}.{} WHERE {} = %(id_value)s").format(
+        sql.Identifier(DB_SCHEMA),
+        sql.Identifier(table),
+        sql.Identifier(id_column)
+    )
     
     with get_db_cursor(commit=True) as cursor:
-        cursor.execute(query, {"id_value": id_value})
+        cursor.execute(query.as_string(cursor), {"id_value": id_value})
         return cursor.rowcount > 0
 
 
