@@ -1,9 +1,9 @@
-from ...agents.config_agent import ConfigAgent
-from ...agents.actuarial.data_normalizer_agent import DataNormalizerAgent
-from ...agents.actuarial.trend_analyzer_agent import TrendAnalyzerAgent
-from ...agents.actuarial.benchmark_comparison_agent import BenchmarkComparisonAgent
-from ...agents.actuarial.fraud_analysis_agent import FraudAnalysisAgent
-from ...agents.actuarial.report_generator_agent import ReportGeneratorAgent
+from agents.config_agent import ConfigAgent
+from agents.actuarial.data_normalizer_agent import DataNormalizerAgent
+from agents.actuarial.trend_analyzer_agent import TrendAnalyzerAgent
+from agents.actuarial.benchmark_comparison_agent import BenchmarkComparisonAgent
+from agents.actuarial.fraud_analysis_agent import FraudAnalysisAgent
+from agents.actuarial.report_generator_agent import ReportGeneratorAgent
 from typing import Dict, Any
 import logging
 import json # For example usage
