@@ -206,7 +206,7 @@ if __name__ == "__main__":
         subprocess.run([
             "streamlit",
             "run",
-            os.path.join("insurance_ai_system", "ui", "streamlit_app.py"),
+            "/app/insurance_ai_system/ui/streamlit_app.py",
             "--server.port", "8080",
             "--server.address", "0.0.0.0"
         ])
