@@ -117,6 +117,16 @@ class ConfigAgent:
             logger.error(f"Error updating institution setting {setting_key}: {e}")
             return False
     
+    
+    def get_claims_rules(self, institution_id: str) -> Dict[str, Any]:
+        """
+        Extracts and returns claims-related configuration rules for the institution.
+
+        These rules include triage, fraud, and auto-resolution logic.
+        """
+        return self.get_institution_setting("claims_rules", default={})
+    
+    
     def get_agent_configuration(self, agent_type: str) -> Dict:
         """
         Get configuration for a specific agent type.
