@@ -52,7 +52,7 @@ app.add_middleware(
 )
 
 # Initialize system components
-config_agent = ConfigAgent(config_dir=os.path.join(os.path.dirname(os.path.abspath(__file__)), "config"))
+config_agent = ConfigAgent(os.path.join(os.path.dirname(os.path.abspath(__file__)), "config"))
 
 # Dependency for institution ID validation
 async def validate_institution(request: Request) -> str:
