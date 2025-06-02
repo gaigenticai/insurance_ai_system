@@ -73,7 +73,12 @@ class DataNormalizerAgent(BaseAgent):
              return {"normalized_data": None, "validation_status": "failed", "errors": {"format_error": "Data must be a dictionary"}}
 
         # --- Validation --- 
-        policy_records = raw_data.get("policy_data", [])
+        policy_records = []
+        if isinstance(raw_data, dict):
+            policy_records = raw_data.get("policy_data", [])
+        else:
+            self.logger.error(f"Expected dict but got {type(raw_data)} in DataNormalizerAgent")
+
         claims_records = raw_data.get("claims_data", [])
         financial_data = raw_data.get("financial_data", {})
         metadata = raw_data.get("metadata", {})

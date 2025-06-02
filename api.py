@@ -7,6 +7,7 @@ import os
 import logging
 import uuid
 from typing import Dict, Any, Optional
+from psycopg2.extras import Json
 
 from fastapi import FastAPI, HTTPException, Depends, Request, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
@@ -185,7 +186,7 @@ async def run_underwriting(
             institution_id=institution_id,
             agent_name="API",
             event_type="UNDERWRITING_REQUESTED",
-            details={"application_id": application_data.get("applicant_id"), "task_id": task_id},
+            details=Json({"application_id": application_data.get("applicant_id"), "task_id": task_id}),
             severity="INFO"
         )
         
@@ -201,7 +202,7 @@ async def run_underwriting(
             institution_id=institution_id,
             agent_name="API",
             event_type="UNDERWRITING_ERROR",
-            details={"application_id": request.applicant_id, "error": str(e)},
+            details=Json({"application_id": request.applicant_id, "error": str(e)}),
             severity="ERROR"
         )
         
@@ -249,7 +250,7 @@ async def run_claims(
             institution_id=institution_id,
             agent_name="API",
             event_type="CLAIM_REQUESTED",
-            details={"claim_id": claim_data.get("claim_id"), "task_id": task_id},
+            details=Json({"claim_id": claim_data.get("claim_id"), "task_id": task_id}),
             severity="INFO"
         )
         
@@ -265,7 +266,7 @@ async def run_claims(
             institution_id=institution_id,
             agent_name="API",
             event_type="CLAIM_ERROR",
-            details={"claim_id": request.claim_id, "error": str(e)},
+            details=Json({"claim_id": request.claim_id, "error": str(e)}),
             severity="ERROR"
         )
         
@@ -313,7 +314,7 @@ async def run_actuarial(
             institution_id=institution_id,
             agent_name="API",
             event_type="ACTUARIAL_REQUESTED",
-            details={"analysis_id": data_source_info.get("analysis_id"), "task_id": task_id},
+            details=Json({"analysis_id": data_source_info.get("analysis_id"), "task_id": task_id}),
             severity="INFO"
         )
         
@@ -329,7 +330,7 @@ async def run_actuarial(
             institution_id=institution_id,
             agent_name="API",
             event_type="ACTUARIAL_ERROR",
-            details={"analysis_id": request.analysis_id, "error": str(e)},
+            details=Json({"analysis_id": request.analysis_id, "error": str(e)}),
             severity="ERROR"
         )
         
