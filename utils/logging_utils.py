@@ -8,6 +8,7 @@ import json
 import os
 from datetime import datetime
 from typing import Dict, Any, Optional
+from psycopg2.extras import Json
 
 # Configure logging
 logging.basicConfig(
@@ -65,7 +66,8 @@ class AuditLogger:
             # Also store in database if available
             try:
                 from db_connection import insert_record
-                
+                if isinstance(audit_event.get("details"), dict):
+                    audit_event["details"] = Json(audit_event["details"])
                 # Insert audit event into database
                 insert_record(
                     'audit_logs',
@@ -75,7 +77,7 @@ class AuditLogger:
                         'event_type': event_type,
                         'details': details,
                         'severity': severity,
-                        'created_at': datetime.utcnow()
+                        'created_at': datetime.now(datetime.timezone.utc)
                     }
                 )
             except Exception as e:

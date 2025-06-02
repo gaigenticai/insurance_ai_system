@@ -67,7 +67,7 @@ class DataNormalizerAgent(BaseAgent):
             self.log_audit(institution_id, "normalization_failed_no_source", {})
             return {"normalized_data": None, "validation_status": "failed", "errors": {"source_error": "No data source specified"}}
 
-        if not isinstance(raw_data, dict):
+        if not isinstance(raw_data, (dict, list)):
              self.logger.error("Loaded data is not a dictionary.")
              self.log_audit(institution_id, "normalization_failed_invalid_format", {})
              return {"normalized_data": None, "validation_status": "failed", "errors": {"format_error": "Data must be a dictionary"}}
