@@ -49,7 +49,7 @@ def run_underwriting_examples(config_agent, institution_id):
     
     # Example application with enough data
     app_data_complete = {
-        "applicant_id": "UW-TEST-001",
+        "applicant_id": "UW-TEST-020",
         "full_name": "Alice Example",
         "address": "123 Main St",
         "date_of_birth": "01/01/1990",

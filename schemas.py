@@ -99,7 +99,7 @@ class UnderwritingResponse(BaseResponse):
                 "status": "success",
                 "message": "Underwriting task created successfully",
                 "task_id": "12345678-1234-5678-1234-567812345678",
-                "application_id": "UW-TEST-001"
+                "application_id": "UW-TEST-010"
             }
         }
 
@@ -242,7 +242,7 @@ class ReportResponse(BaseResponse):
                 "created_at": "2023-06-01T10:01:30",
                 "content": {
                     "title": "Underwriting Decision Report",
-                    "applicant_id": "UW-TEST-001",
+                    "applicant_id": "UW-TEST-010",
                     "decision": "approved",
                     "risk_score": 25.5,
                     "decision_factors": {

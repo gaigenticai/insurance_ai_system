@@ -7,7 +7,7 @@ import os
 import logging
 from contextlib import contextmanager
 from typing import Generator, Any, Dict, Optional
-
+import json
 import psycopg2
 from psycopg2.pool import SimpleConnectionPool
 from psycopg2.extras import RealDictCursor, DictCursor, Json
@@ -181,7 +181,10 @@ def update_record(table: str, id_value: str, data: Dict, id_column: str = "id") 
         sql.Identifier(id_column)
     )
     
-    params = {**data, "id_value": id_value}
+    params = {
+        k: json.dumps(v) if isinstance(v, dict) else v
+        for k, v in {**data, "id_value": id_value}.items()
+    }
     
     with get_db_cursor(commit=True) as cursor:
         cursor.execute(query.as_string(cursor), params)

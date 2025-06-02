@@ -1,0 +1,15 @@
+{
+  "institution_id": "institution_a",
+  "claims": [
+    {
+      "claim_id": "CL-001",
+      "amount": 1200,
+      "approved": true
+    },
+    {
+      "claim_id": "CL-002",
+      "amount": 5000,
+      "approved": false
+    }
+  ]
+}
