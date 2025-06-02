@@ -9,6 +9,7 @@ import logging
 import os
 import sys
 from typing import Dict, Any
+import subprocess
 
 # Add project root parent to Python path to allow package imports
 project_root = os.path.dirname(os.path.abspath(__file__))
@@ -202,3 +203,12 @@ if __name__ == "__main__":
 
     sys.exit(main(args))
 
+if __name__ == "__main__":
+    print("Launching Streamlit UI...")
+    subprocess.run([
+        "streamlit",
+        "run",
+        os.path.join("insurance_ai_system", "ui", "streamlit_app.py"),
+        "--server.port", "8080",
+        "--server.address", "0.0.0.0"
+    ])
