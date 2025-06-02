@@ -17,7 +17,7 @@ logging.basicConfig(
 )
 
 # Create audit logger
-audit_logger = logging.getLogger('audit')
+audit_logger = AuditLogger()
 audit_logger.setLevel(logging.INFO)
 
 # Add file handler for audit logs
