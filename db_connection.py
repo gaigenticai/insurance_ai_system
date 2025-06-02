@@ -203,7 +203,7 @@ def get_record_by_id(table: str, id_value: str, id_column: str = "id") -> Dict:
     Returns:
         Dictionary containing the record data
     """
-    params = {}
+    params = {"id_value": id_value}
     query = sql.SQL("SELECT * FROM {}.{} WHERE {} = %(id_value)s").format(
         sql.Identifier(DB_SCHEMA),
         sql.Identifier(table),
@@ -225,13 +225,12 @@ def get_record_by_id(table: str, id_value: str, id_column: str = "id") -> Dict:
 def get_records(table: str, conditions: Optional[Dict[str, Any]] = None, schema: str = DB_SCHEMA) -> list:
     """Retrieve records from a table based on optional conditions."""
     from psycopg2 import sql
-
-    params = {}
+    
     query_parts = [sql.SQL("SELECT * FROM {}.{}").format(
         sql.Identifier(schema),
         sql.Identifier(table)
     )]
-
+    params = {}
     if conditions:
         where_clauses = []
         for i, (col, val) in enumerate(conditions.items()):

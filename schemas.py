@@ -75,7 +75,7 @@ class UnderwritingRequest(BaseRequest):
         schema_extra = {
             "example": {
                 "institution_id": "institution_a",
-                "applicant_id": "UW-TEST-001",
+                "applicant_id": "UW-TEST-100",
                 "full_name": "Alice Example",
                 "address": "123 Main St",
                 "date_of_birth": "01/01/1990",

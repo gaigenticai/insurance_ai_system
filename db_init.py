@@ -8,6 +8,7 @@ import sys
 import logging
 import json
 import psycopg2
+from psycopg2.extras import Json
 from psycopg2.extras import RealDictCursor
 
 # Configure logging
@@ -122,7 +123,7 @@ def load_institution_data(connection, institution_json_path):
                     DO UPDATE SET configuration = EXCLUDED.configuration,
                                   updated_at = CURRENT_TIMESTAMP
                     """,
-                    (institution_id, agent_type, json.dumps(config))
+                    (institution_id, agent_type, Json(config))
                 )
             
             # Load module configurations
