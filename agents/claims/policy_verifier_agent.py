@@ -9,10 +9,37 @@ class PolicyVerifierAgent(BaseAgent):
         super().__init__(agent_name="PolicyVerifierAgent", config_agent=config_agent)
         # In a real system, this agent would connect to a policy database or API.
         # Here, we simulate a simple policy store.
-        self.mock_policy_store = {
-            "POLICY_ACTIVE_001": {"status": "active", "coverage_limit": 5000, "deductible": 500, "valid_until": "2026-12-31"},
-            "POLICY_EXPIRED_002": {"status": "expired", "coverage_limit": 10000, "deductible": 1000, "valid_until": "2023-01-01"},
-            "POLICY_ACTIVE_003": {"status": "active", "coverage_limit": 1000, "deductible": 100, "valid_until": "2025-08-15"}
+        policy_store = {
+            "POLICY_ACTIVE_001": {
+                "status": "active",
+                "coverage_limit": 5000,
+                "deductible": 500,
+                "valid_until": "2026-12-31"
+            },
+            "POL-000001": {
+                "status": "active",
+                "coverage_limit": 10000,
+                "deductible": 1000,
+                "valid_until": "2025-12-31"
+            },
+            "POL-EXPIRED-002": {
+                "status": "expired",
+                "coverage_limit": 8000,
+                "deductible": 750,
+                "valid_until": "2023-12-31"
+            },
+            "POL-PENDING-003": {
+                "status": "pending",
+                "coverage_limit": 3000,
+                "deductible": 250,
+                "valid_until": "2025-09-30"
+            },
+            "POL-123456": {
+                "status": "active",
+                "coverage_limit": 15000,
+                "deductible": 500,
+                "valid_until": "2025-12-31"
+            }
         }
 
     def execute(self, data: Dict[str, Any], institution_id: str) -> Dict[str, Any]:

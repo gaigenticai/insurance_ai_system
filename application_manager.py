@@ -4,6 +4,8 @@ Handles storing and retrieving application data from PostgreSQL.
 """
 
 import logging
+import json
+
 import uuid
 from typing import Dict, Any, Optional, List
 
@@ -62,7 +64,7 @@ class ApplicationManager:
                 'applicant_full_name': applicant_full_name,
                 'applicant_address': applicant_address,
                 'applicant_date_of_birth': applicant_date_of_birth,
-                'application_data': application_data,
+                'application_data': json.dumps(application_data),
                 'status': 'pending'
             })
             

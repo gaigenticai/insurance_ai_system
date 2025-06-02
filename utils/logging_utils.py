@@ -60,7 +60,7 @@ class AuditLogger:
             }
             
             # Log audit event
-            audit_logger.info(json.dumps(audit_event))
+            logging.getLogger("AuditLogger").info(json.dumps(audit_event))
             
             # Also store in database if available
             try:

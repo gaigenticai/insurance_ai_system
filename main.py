@@ -138,9 +138,16 @@ def run_actuarial_examples(config_agent, institution_id):
     
     # Example actuarial calculation
     result = flow.calculate_risk_model({
-        "age_group": "30-40",
-        "region": "Northeast",
-        "coverage_type": "comprehensive"
+        "raw_data": [
+            {
+                "age_group": "30-40",
+                "region": "Northeast",
+                "coverage_type": "comprehensive",
+                "claim_history": 2,
+                "premium_paid": 1200
+            }
+        ],
+        "institution_id": institution_id
     })
     
     logger.info(f"Actuarial calculation result: {result}")
