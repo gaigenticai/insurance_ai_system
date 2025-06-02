@@ -55,7 +55,7 @@ class ApplicationManager:
             applicant_full_name = application_data.get('full_name', '')
             applicant_address = application_data.get('address', '')
             applicant_date_of_birth = application_data.get('date_of_birth', None)
-            application_id = application_data.get('applicant_id', f"APP-{uuid.uuid4().hex[:8].upper()}")
+            application_id = f"APP-{uuid.uuid4().hex[:8].upper()}"
             
             # Insert into database
             result = insert_record('applications', {

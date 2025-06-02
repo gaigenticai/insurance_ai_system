@@ -2,7 +2,8 @@ from agents.base.base_agent import BaseAgent
 from typing import Any, Dict
 import json
 import os
-import datetime
+from datetime import datetime, timezone
+
 
 class ReportGeneratorAgent(BaseAgent):
     """Generates reports based on actuarial analysis results."""
@@ -18,7 +19,7 @@ class ReportGeneratorAgent(BaseAgent):
         inst_name = branding.get("name", institution_id)
         report_period_start = report_metadata.get("report_period_start", "N/A")
         report_period_end = report_metadata.get("report_period_end", "N/A")
-        generated_at = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
+        generated_at = datetime.now(timezone.utc).isoformat().strftime("%Y-%m-%d %H:%M:%S UTC")
 
         report_lines.append(f"# Actuarial Analysis Report for {inst_name}")
         report_lines.append(f"*Report Period: {report_period_start} to {report_period_end}*")
@@ -77,7 +78,7 @@ class ReportGeneratorAgent(BaseAgent):
 
     def _generate_json_report(self, data: Dict[str, Any], institution_id: str, branding: Dict[str, Any], report_metadata: Dict[str, Any]) -> Dict[str, Any]:
         """Generates a JSON formatted report."""
-        generated_at = datetime.datetime.utcnow().isoformat()
+        generated_at = datetime.now(timezone.utc).isoformat().isoformat()
         json_report = {
             "report_metadata": {
                 **report_metadata,
@@ -112,7 +113,7 @@ class ReportGeneratorAgent(BaseAgent):
 
         branding = self.config_agent.get_branding(institution_id)
         report_metadata = data.get("normalized_data", {}).get("metadata", {})
-        report_timestamp = datetime.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        report_timestamp = datetime.now(timezone.utc).isoformat().isoformat().strftime("%Y%m%d_%H%M%S")
         base_filename = f"{institution_id}_actuarial_report_{report_timestamp}"
 
         report_paths = {}

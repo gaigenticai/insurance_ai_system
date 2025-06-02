@@ -3,6 +3,8 @@ from typing import Any, Dict
 import json
 import os
 import datetime
+from datetime import datetime, timezone
+
 
 class EthicsLoggerAgent(BaseAgent):
     """Logs key decisions and potential ethical considerations during claims processing."""
@@ -38,7 +40,7 @@ class EthicsLoggerAgent(BaseAgent):
             return {"ethics_log_recorded": False, "log_path": None}
 
         log_entry = {
-            "timestamp": datetime.datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat().isoformat(),
             "institution_id": institution_id,
             "claim_id": claim_id,
             "decision_point": decision_point,

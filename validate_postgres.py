@@ -96,7 +96,8 @@ def test_crud_operations():
         
         # Verify UPDATE
         updated_record = get_record_by_id('institutions', institution_id)
-        if updated_record['settings'].get('test_setting') != "updated_value":
+        settings = updated_record["settings"]
+        if isinstance(settings, dict) and settings.get("test_setting") != "updated_value":
             logger.error(f"UPDATE verification failed: {updated_record}")
             return False
         

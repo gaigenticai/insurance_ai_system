@@ -2,7 +2,8 @@ from agents.base.base_agent import BaseAgent
 from typing import Any, Dict
 import json
 import os
-import datetime
+from datetime import datetime, timezone
+
 
 class FeedbackTrainerAgent(BaseAgent):
     """Logs underwriting decisions and feedback for potential future training."""
@@ -38,7 +39,7 @@ class FeedbackTrainerAgent(BaseAgent):
             return {"feedback_logged": False, "log_path": None}
 
         log_entry = {
-            "timestamp": datetime.datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat().isoformat(),
             "institution_id": institution_id,
             "applicant_id": applicant_id,
             "decision": decision,
