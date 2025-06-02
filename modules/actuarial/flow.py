@@ -22,6 +22,20 @@ class ActuarialFlow:
         self.reporter_agent = ReportGeneratorAgent(config_agent)
         self.logger.info("ActuarialFlow initialized with all required agents.")
 
+
+    def calculate_risk_model(self, data_source: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Wrapper method to perform risk modeling using the actuarial pipeline.
+        Args:
+            data_source (dict): Dictionary containing input data or file path.
+        Returns:
+            dict: Output from the full actuarial analysis flow.
+        """
+        institution_id = data_source.get("institution_id", "unknown")
+        return self.run(data_source, institution_id)
+
+
+
     def run(self, data_source: Dict[str, Any], institution_id: str) -> Dict[str, Any]:
         """Runs the full actuarial analysis and reporting flow.
 
