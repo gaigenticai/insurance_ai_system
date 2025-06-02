@@ -16,9 +16,7 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 
-# Create audit logger
-audit_logger = AuditLogger()
-audit_logger.setLevel(logging.INFO)
+
 
 # Add file handler for audit logs
 audit_log_dir = os.environ.get('AUDIT_LOG_DIR', 'logs')
@@ -91,5 +89,7 @@ class AuditLogger:
 
 
 # Export audit logger instance
-audit_logger_instance = AuditLogger()
+# Create audit logger
+audit_logger = AuditLogger()
+audit_logger.setLevel(logging.INFO)
 
