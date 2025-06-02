@@ -203,11 +203,12 @@ if __name__ == "__main__":
     else:
         # No arguments passed → launch Streamlit UI
         print("Launching Streamlit UI (no args detected)...")
+        # Use project_root to build the correct path to streamlit_app.py
+        streamlit_app_path = os.path.join(project_root, "ui", "streamlit_app.py")
         subprocess.run([
             "streamlit",
             "run",
-            "/app/insurance_ai_system/ui/streamlit_app.py",
+            streamlit_app_path,
             "--server.port", "8080",
             "--server.address", "0.0.0.0"
         ])
-#trigger dev
