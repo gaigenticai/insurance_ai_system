@@ -10,11 +10,8 @@ from typing import Generator, Any, Dict, Optional
 import json
 import psycopg2
 from psycopg2.pool import SimpleConnectionPool
-from psycopg2.extras import RealDictCursor, DictCursor, Json
+from psycopg2.extras import RealDictCursor, DictCursor, Json, register_adapter # Added register_adapter
 from psycopg2 import sql
-import logging
-logger = logging.getLogger(__name__)
-
 
 # Configure logging
 logging.basicConfig(
@@ -22,6 +19,9 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+# Register adapter for dict to JSONB - Keep this fix
+register_adapter(dict, Json)
 
 # Get database connection details from environment variables
 # Railway.com automatically provides these environment variables
@@ -62,6 +62,8 @@ def get_db_connection() -> Generator[Any, None, None]:
     """
     connection = None
     try:
+        if not connection_pool:
+             raise ConnectionError("Database connection pool is not initialized.")
         connection = connection_pool.getconn()
         yield connection
     except Exception as e:
@@ -85,13 +87,19 @@ def get_db_cursor(commit: bool = False) -> Generator[Any, None, None]:
         cursor = connection.cursor()
         try:
             # Set search path to our schema
-            cursor.execute(f"SET search_path TO {DB_SCHEMA}, public;")
+            # Use sql.SQL for safety
+            cursor.execute(sql.SQL("SET search_path TO {}, public;").format(sql.Identifier(DB_SCHEMA)))
             yield cursor
             if commit:
                 connection.commit()
         except Exception as e:
             connection.rollback()
             logger.error(f"Database operation error: {e}")
+            # Log the specific SQL query and params if available in the exception context
+            if hasattr(e, 'diag'):
+                logger.error(f"SQLSTATE: {e.diag.sqlstate}, Message: {e.diag.message_primary}")
+            if hasattr(cursor, 'query'):
+                 logger.error(f"Failed Query: {cursor.query}")
             raise
         finally:
             cursor.close()
@@ -102,58 +110,66 @@ def execute_query(query: str, params: Dict = None, commit: bool = False) -> list
     Execute a SQL query and return the results.
     
     Args:
-        query: SQL query string
-        params: Query parameters
+        query: SQL query string (can be sql.SQL object or plain string)
+        params: Query parameters dictionary
         commit: Whether to commit the transaction
         
     Returns:
-        List of query results
+        List of query results (list of dicts)
     """
     with get_db_cursor(commit=commit) as cursor:
+        # Log query safely
+        log_query = query.as_string(cursor) if isinstance(query, sql.Composed) else query
+        logger.info(f"Executing query: {log_query} with params: {params}")
         cursor.execute(query, params or {})
         if cursor.description:
+            # Fetch all results as dictionaries
             return cursor.fetchall()
         return []
 
 
-def insert_record(table: str, data: Dict, returning: str = "id") -> Dict:
+def insert_record(table: str, data: Dict, returning: str = "id") -> Optional[Dict]:
     """
     Insert a record into a table and return the specified column.
+    Handles dictionary to JSONB adaptation automatically via register_adapter.
     
     Args:
         table: Table name
         data: Dictionary of column names and values
-        returning: Column to return after insert
+        returning: Column to return after insert (or None)
         
     Returns:
-        Dictionary containing the returned column value
+        Dictionary containing the returned column value, or None if returning is None
     """
+    if not data:
+        logger.warning(f"Attempted to insert empty data into table {table}")
+        return None
+        
     columns = list(data.keys())
-    values = list(data.values())
     
-    # Convert any dict values to JSONB
-    for i, value in enumerate(values):
-        if isinstance(value, dict):
-            values[i] = Json(value)
+    # Use sql module for safe identifiers and placeholders
+    returning_clause = sql.SQL(" RETURNING {}").format(sql.Identifier(returning)) if returning else sql.SQL("")
     
-    placeholders = [f'%({col})s' for col in columns]
-    
-    query = sql.SQL("INSERT INTO {}.{} ({}) VALUES ({}) RETURNING {}").format(
+    query = sql.SQL("INSERT INTO {}.{} ({}) VALUES ({}){}").format(
         sql.Identifier(DB_SCHEMA),
         sql.Identifier(table),
         sql.SQL(', ').join(map(sql.Identifier, columns)),
         sql.SQL(', ').join(sql.Placeholder(col) for col in columns),
-        sql.Identifier(returning)
+        returning_clause
     )
     
     with get_db_cursor(commit=True) as cursor:
-        cursor.execute(query.as_string(cursor), data)
-        return cursor.fetchone()
+        logger.info(f"Executing insert: {query.as_string(cursor)} with data: {data}")
+        cursor.execute(query, data)
+        if returning:
+            return cursor.fetchone()
+        return None # Return None if not returning anything
 
 
-def update_record(table: str, id_value: str, data: Dict, id_column: str = "id") -> bool:
+def update_record(table: str, id_value: Any, data: Dict, id_column: str = "id") -> bool:
     """
     Update a record in a table.
+    Handles dictionary to JSONB adaptation automatically via register_adapter.
     
     Args:
         table: Table name
@@ -162,38 +178,37 @@ def update_record(table: str, id_value: str, data: Dict, id_column: str = "id") 
         id_column: Name of the ID column
         
     Returns:
-        True if successful, False otherwise
+        True if successful (at least one row updated), False otherwise
     """
     if not data:
+        logger.warning(f"Attempted to update with empty data for table {table}, id {id_value}")
         return False
     
-    # Convert any dict values to JSONB
-    for key, value in data.items():
-        if isinstance(value, dict):
-            data[key] = Json(value)
-    
-    set_items = [f"{col} = %({col})s" for col in data.keys()]
+    # Use sql module for safe identifiers and placeholders
+    set_clause = sql.SQL(', ').join(
+        sql.SQL("{} = {} ").format(sql.Identifier(col), sql.Placeholder(col))
+        for col in data.keys()
+    )
     
     query = sql.SQL("UPDATE {}.{} SET {} WHERE {} = %(id_value)s").format(
         sql.Identifier(DB_SCHEMA),
         sql.Identifier(table),
-        sql.SQL(', ').join(sql.SQL(f"{col} = %({col})s") for col in data.keys()),
+        set_clause,
         sql.Identifier(id_column)
     )
     
-    params = {
-        k: json.dumps(v) if isinstance(v, dict) else v
-        for k, v in {**data, "id_value": id_value}.items()
-    }
+    # Combine data and id_value for parameters
+    params = {**data, "id_value": id_value}
     
     with get_db_cursor(commit=True) as cursor:
-        cursor.execute(query.as_string(cursor), params)
+        logger.info(f"Executing update: {query.as_string(cursor)} with params: {params}")
+        cursor.execute(query, params)
         return cursor.rowcount > 0
 
 
-def get_record_by_id(table: str, id_value: str, id_column: str = "id") -> Dict:
+def get_record_by_id(table: str, id_value: Any, id_column: str = "id") -> Optional[Dict]:
     """
-    Get a record by its ID.
+    Get a single record by its ID.
     
     Args:
         table: Table name
@@ -201,30 +216,24 @@ def get_record_by_id(table: str, id_value: str, id_column: str = "id") -> Dict:
         id_column: Name of the ID column
         
     Returns:
-        Dictionary containing the record data
+        Dictionary containing the record data, or None if not found
     """
     params = {"id_value": id_value}
-    query = sql.SQL("SELECT * FROM {}.{} WHERE {} = %(id_value)s").format(
+    query = sql.SQL("SELECT * FROM {}.{} WHERE {} = %(id_value)s LIMIT 1").format(
         sql.Identifier(DB_SCHEMA),
         sql.Identifier(table),
         sql.Identifier(id_column)
     )
     
     with get_db_cursor() as cursor:
-    # Log the SQL query and params before execution
-        logger.info(f"Executing query: {query.as_string(cursor)} with params: {params}")
-
-        if not params:
-            cursor.execute(query.as_string(cursor))
-        else:
-            cursor.execute(query.as_string(cursor), params)
-            
-        return cursor.fetchall()
+        log_query = query.as_string(cursor)
+        logger.info(f"Executing query: {log_query} with params: {params}")
+        cursor.execute(query, params)
+        return cursor.fetchone() # Fetch one record
 
 
 def get_records(table: str, conditions: Optional[Dict[str, Any]] = None, schema: str = DB_SCHEMA) -> list:
     """Retrieve records from a table based on optional conditions."""
-    from psycopg2 import sql
     
     query_parts = [sql.SQL("SELECT * FROM {}.{}").format(
         sql.Identifier(schema),
@@ -234,8 +243,6 @@ def get_records(table: str, conditions: Optional[Dict[str, Any]] = None, schema:
     if conditions:
         where_clauses = []
         for i, (col, val) in enumerate(conditions.items()):
-            if val is None:
-                continue  # prevent incomplete placeholders
             param_name = f"param_{i}"
             where_clauses.append(sql.SQL("{} = {}").format(
                 sql.Identifier(col),
@@ -251,15 +258,13 @@ def get_records(table: str, conditions: Optional[Dict[str, Any]] = None, schema:
     query = sql.SQL("").join(query_parts)
 
     with get_db_cursor() as cursor:
-        logger.info(f"Executing query: {query.as_string(cursor)} with params: {params}")
-        if not params:
-            cursor.execute(query.as_string(cursor))
-        else:
-            cursor.execute(query.as_string(cursor), params)
+        log_query = query.as_string(cursor)
+        logger.info(f"Executing query: {log_query} with params: {params}")
+        cursor.execute(query, params)
         return cursor.fetchall()
 
 
-def delete_record(table: str, id_value: str, id_column: str = "id") -> bool:
+def delete_record(table: str, id_value: Any, id_column: str = "id") -> bool:
     """
     Delete a record from a table.
     
@@ -269,8 +274,9 @@ def delete_record(table: str, id_value: str, id_column: str = "id") -> bool:
         id_column: Name of the ID column
         
     Returns:
-        True if successful, False otherwise
+        True if successful (at least one row deleted), False otherwise
     """
+    params = {"id_value": id_value}
     query = sql.SQL("DELETE FROM {}.{} WHERE {} = %(id_value)s").format(
         sql.Identifier(DB_SCHEMA),
         sql.Identifier(table),
@@ -278,7 +284,9 @@ def delete_record(table: str, id_value: str, id_column: str = "id") -> bool:
     )
     
     with get_db_cursor(commit=True) as cursor:
-        cursor.execute(query.as_string(cursor), {"id_value": id_value})
+        log_query = query.as_string(cursor)
+        logger.info(f"Executing delete: {log_query} with params: {params}")
+        cursor.execute(query, params)
         return cursor.rowcount > 0
 
 
@@ -287,13 +295,15 @@ def execute_custom_query(query: str, params: Dict = None, commit: bool = False) 
     Execute a custom SQL query.
     
     Args:
-        query: SQL query string
-        params: Query parameters
+        query: SQL query string (can be sql.SQL object or plain string)
+        params: Query parameters dictionary
         commit: Whether to commit the transaction
         
     Returns:
-        List of query results
+        List of query results (list of dicts)
     """
+    # This function essentially duplicates execute_query, kept for compatibility if used elsewhere
+    logger.warning("execute_custom_query is deprecated, use execute_query instead.")
     return execute_query(query, params, commit)
 
 
@@ -302,3 +312,6 @@ def close_all_connections():
     if connection_pool:
         connection_pool.closeall()
         logger.info("All database connections closed")
+    else:
+        logger.warning("Attempted to close connections, but pool was not initialized.")
+

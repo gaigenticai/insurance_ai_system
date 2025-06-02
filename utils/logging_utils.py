@@ -6,7 +6,7 @@ Provides audit logging functionality.
 import logging
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timezone  # Import timezone
 from typing import Dict, Any, Optional
 from psycopg2.extras import Json
 
@@ -52,7 +52,7 @@ class AuditLogger:
         try:
             # Create audit event
             audit_event = {
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(), # Use timezone-aware timestamp here too for consistency
                 "institution_id": institution_id,
                 "agent_name": agent_name,
                 "event_type": event_type,
@@ -66,8 +66,9 @@ class AuditLogger:
             # Also store in database if available
             try:
                 from db_connection import insert_record
-                if isinstance(audit_event.get("details"), dict):
-                    audit_event["details"] = Json(audit_event["details"])
+                # Prepare details for JSONB storage if it's a dict
+                db_details = Json(details) if isinstance(details, dict) else details
+                
                 # Insert audit event into database
                 insert_record(
                     'audit_logs',
@@ -75,11 +76,13 @@ class AuditLogger:
                         'institution_id': institution_id,
                         'agent_name': agent_name,
                         'event_type': event_type,
-                        'details': details,
+                        'details': db_details, # Use prepared details
                         'severity': severity,
-                        'created_at': datetime.now(datetime.timezone.utc)
+                        'created_at': datetime.now(timezone.utc) # Use imported timezone
                     }
                 )
+            except ImportError:
+                 logging.warning("db_connection module not found, skipping database audit log.")
             except Exception as e:
                 # Just log the error, don't raise
                 logging.error(f"Failed to store audit event in database: {e}")
@@ -88,4 +91,5 @@ class AuditLogger:
 
 
 # Export audit logger instance
-audit_logger = AuditLogger()
+audit_logger_instance = AuditLogger()
+
