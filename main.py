@@ -123,7 +123,7 @@ def run_claims_examples(config_agent, institution_id):
     }
     
     # Process claim
-    result = flow.process_claim(claim_data)
+    result = flow.run(claim_data, args.institution)
     
     logger.info(f"Claims processing result: {result}")
 
@@ -146,7 +146,7 @@ def run_actuarial_examples(config_agent, institution_id):
     logger.info(f"Actuarial calculation result: {result}")
 
 
-def main():
+def main(args):
     """Main entry point for the Insurance AI System."""
     parser = argparse.ArgumentParser(description='Insurance AI System')
     parser.add_argument('--institution', type=str, default='institution_a',
@@ -189,4 +189,9 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--institution", required=True)
+    args = parser.parse_args()
+
+    sys.exit(main(args))
+
