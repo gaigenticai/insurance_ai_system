@@ -17,18 +17,6 @@ logging.basicConfig(
 )
 
 # Create audit logger
-
-audit_logger.setLevel(logging.INFO)
-
-# Add file handler for audit logs
-audit_log_dir = os.environ.get('AUDIT_LOG_DIR', 'logs')
-os.makedirs(audit_log_dir, exist_ok=True)
-audit_log_file = os.path.join(audit_log_dir, 'audit.log')
-file_handler = logging.FileHandler(audit_log_file)
-file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-audit_logger.addHandler(file_handler)
-
-
 class AuditLogger:
     """Audit logger for the Insurance AI System."""
     
@@ -91,5 +79,4 @@ class AuditLogger:
 
 
 # Export audit logger instance
-audit_logger_instance = AuditLogger()
 audit_logger = AuditLogger()
