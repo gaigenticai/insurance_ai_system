@@ -40,7 +40,7 @@ class EthicsLoggerAgent(BaseAgent):
             return {"ethics_log_recorded": False, "log_path": None}
 
         log_entry = {
-            "timestamp": datetime.now(timezone.utc).isoformat().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "institution_id": institution_id,
             "claim_id": claim_id,
             "decision_point": decision_point,
