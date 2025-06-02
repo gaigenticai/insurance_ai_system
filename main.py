@@ -197,18 +197,16 @@ def main(args):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--institution", required=True)
-    args = parser.parse_args()
-
-    sys.exit(main(args))
-
-if __name__ == "__main__":
-    print("Launching Streamlit UI...")
-    subprocess.run([
-        "streamlit",
-        "run",
-        os.path.join("insurance_ai_system", "ui", "streamlit_app.py"),
-        "--server.port", "8080",
-        "--server.address", "0.0.0.0"
-    ])
+    if len(sys.argv) > 1:
+        # If arguments are passed, expect --institution etc.
+        sys.exit(main(sys.argv))
+    else:
+        # No arguments passed → launch Streamlit UI
+        print("Launching Streamlit UI (no args detected)...")
+        subprocess.run([
+            "streamlit",
+            "run",
+            os.path.join("insurance_ai_system", "ui", "streamlit_app.py"),
+            "--server.port", "8080",
+            "--server.address", "0.0.0.0"
+        ])
