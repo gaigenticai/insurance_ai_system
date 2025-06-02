@@ -9,7 +9,7 @@ class PolicyVerifierAgent(BaseAgent):
         super().__init__(agent_name="PolicyVerifierAgent", config_agent=config_agent)
         # In a real system, this agent would connect to a policy database or API.
         # Here, we simulate a simple policy store.
-        policy_store = {
+        self.mock_policy_store = {
             "POLICY_ACTIVE_001": {
                 "status": "active",
                 "coverage_limit": 5000,
