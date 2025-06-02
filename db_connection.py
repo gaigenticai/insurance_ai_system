@@ -12,7 +12,7 @@ import psycopg2
 from psycopg2.pool import SimpleConnectionPool
 from psycopg2.extras import RealDictCursor, DictCursor, Json
 from psycopg2 import sql
-from psycopg2 import register_adapter
+from psycopg2.extensions import register_adapter
 
 
 # Configure logging
