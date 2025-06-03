@@ -38,22 +38,45 @@ DB_SCHEMA = os.getenv("DB_SCHEMA", "insurance_ai")
 MIN_CONNECTIONS = 1
 MAX_CONNECTIONS = 10
 
-# Initialize the connection pool
-try:
-    connection_pool = SimpleConnectionPool(
-        MIN_CONNECTIONS,
-        MAX_CONNECTIONS,
-        host=DB_HOST,
-        port=DB_PORT,
-        dbname=DB_NAME,
-        user=DB_USER,
-        password=DB_PASSWORD,
-        cursor_factory=RealDictCursor
-    )
-    logger.info("Database connection pool initialized successfully")
-except Exception as e:
-    logger.error(f"Failed to initialize database connection pool: {e}")
-    connection_pool = None
+# Initialize the connection pool lazily
+connection_pool = None
+
+def initialize_db_pool():
+    """Initialize the database connection pool"""
+    global connection_pool
+    
+    # Skip initialization if disabled
+    if os.getenv('SKIP_DB_INIT', '').lower() == 'true':
+        logger.info("Database initialization skipped (SKIP_DB_INIT=true)")
+        return
+    
+    if connection_pool is not None:
+        logger.info("Database connection pool already initialized")
+        return
+    
+    try:
+        connection_pool = SimpleConnectionPool(
+            MIN_CONNECTIONS,
+            MAX_CONNECTIONS,
+            host=DB_HOST,
+            port=DB_PORT,
+            dbname=DB_NAME,
+            user=DB_USER,
+            password=DB_PASSWORD,
+            cursor_factory=RealDictCursor
+        )
+        logger.info("Database connection pool initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize database connection pool: {e}")
+        connection_pool = None
+
+def close_db_pool():
+    """Close the database connection pool"""
+    global connection_pool
+    if connection_pool:
+        connection_pool.closeall()
+        connection_pool = None
+        logger.info("Database connection pool closed")
 
 
 @contextmanager
@@ -62,6 +85,10 @@ def get_db_connection() -> Generator[Any, None, None]:
     Context manager for database connections.
     Yields a connection from the pool and ensures it's returned properly.
     """
+    # Initialize pool if not already done
+    if connection_pool is None:
+        initialize_db_pool()
+    
     connection = None
     try:
         if not connection_pool:

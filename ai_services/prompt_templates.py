@@ -1,10 +1,14 @@
 """
-Prompt templates for insurance domain-specific AI tasks.
+Prompt templates for insurance domain-specific AI tasks with advanced techniques.
 """
 
 import json
-from typing import Dict, Any, List
+import logging
+from typing import Dict, Any, List, Optional
 from dataclasses import dataclass
+from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 @dataclass
 class PromptTemplate:
@@ -436,6 +440,166 @@ Include specific recommendations for:
                 categories[template.category] = []
             categories[template.category].append(template.name)
         return categories
+
+class AdvancedPromptTechniques:
+    """Advanced prompt engineering techniques for better AI responses."""
+    
+    @staticmethod
+    def chain_of_thought_prompt(base_prompt: str, reasoning_steps: List[str]) -> str:
+        """Apply chain-of-thought prompting technique."""
+        cot_prompt = f"{base_prompt}\n\nLet's think through this step by step:\n"
+        for i, step in enumerate(reasoning_steps, 1):
+            cot_prompt += f"{i}. {step}\n"
+        cot_prompt += "\nBased on this analysis, provide your response:"
+        return cot_prompt
+    
+    @staticmethod
+    def few_shot_prompt(base_prompt: str, examples: List[Dict[str, str]]) -> str:
+        """Apply few-shot prompting with examples."""
+        few_shot_prompt = f"{base_prompt}\n\nHere are some examples:\n\n"
+        for i, example in enumerate(examples, 1):
+            few_shot_prompt += f"Example {i}:\n"
+            few_shot_prompt += f"Input: {example['input']}\n"
+            few_shot_prompt += f"Output: {example['output']}\n\n"
+        few_shot_prompt += "Now, analyze the following case:"
+        return few_shot_prompt
+    
+    @staticmethod
+    def role_based_prompt(base_prompt: str, role: str, expertise_areas: List[str]) -> str:
+        """Apply role-based prompting."""
+        role_prompt = f"You are an expert {role} with deep expertise in {', '.join(expertise_areas)}.\n\n"
+        role_prompt += f"{base_prompt}\n\n"
+        role_prompt += f"As a {role}, provide your professional analysis:"
+        return role_prompt
+    
+    @staticmethod
+    def constraint_based_prompt(base_prompt: str, constraints: Dict[str, Any]) -> str:
+        """Apply constraint-based prompting."""
+        constraint_prompt = f"{base_prompt}\n\nPlease ensure your response adheres to these constraints:\n"
+        for constraint, value in constraints.items():
+            constraint_prompt += f"- {constraint}: {value}\n"
+        constraint_prompt += "\nYour response:"
+        return constraint_prompt
+    
+    @staticmethod
+    def multi_perspective_prompt(base_prompt: str, perspectives: List[str]) -> str:
+        """Apply multi-perspective analysis prompting."""
+        multi_prompt = f"{base_prompt}\n\nAnalyze this from multiple perspectives:\n"
+        for perspective in perspectives:
+            multi_prompt += f"- From a {perspective} perspective\n"
+        multi_prompt += "\nProvide a comprehensive analysis considering all perspectives:"
+        return multi_prompt
+
+class InsurancePromptEnhancer:
+    """Enhanced prompt templates specifically for insurance domain."""
+    
+    def __init__(self):
+        self.base_manager = PromptTemplateManager()
+        self.techniques = AdvancedPromptTechniques()
+    
+    def get_enhanced_underwriting_prompt(
+        self,
+        application_data: Dict[str, Any],
+        use_chain_of_thought: bool = True,
+        include_examples: bool = False
+    ) -> str:
+        """Get enhanced underwriting prompt with advanced techniques."""
+        base_prompt = self.base_manager.format_prompt(
+            'risk_assessment',
+            application_data=json.dumps(application_data, indent=2),
+            guidelines="Standard underwriting guidelines"
+        )
+        
+        if use_chain_of_thought:
+            reasoning_steps = [
+                "Analyze the applicant's demographic profile and risk factors",
+                "Evaluate financial stability and income consistency",
+                "Assess health and lifestyle factors",
+                "Consider external risk factors and market conditions",
+                "Apply underwriting guidelines and risk scoring models",
+                "Determine appropriate premium adjustments and conditions"
+            ]
+            base_prompt = self.techniques.chain_of_thought_prompt(base_prompt, reasoning_steps)
+        
+        if include_examples:
+            examples = [
+                {
+                    "input": "35-year-old software engineer, $85k income, excellent credit",
+                    "output": "Low risk profile - approve with standard premium"
+                },
+                {
+                    "input": "55-year-old construction worker, $45k income, fair credit",
+                    "output": "Moderate risk - approve with 15% premium increase"
+                }
+            ]
+            base_prompt = self.techniques.few_shot_prompt(base_prompt, examples)
+        
+        return self.techniques.role_based_prompt(
+            base_prompt,
+            "Senior Underwriter",
+            ["risk assessment", "actuarial science", "insurance regulations"]
+        )
+    
+    def get_enhanced_claims_prompt(
+        self,
+        claim_data: Dict[str, Any],
+        use_multi_perspective: bool = True
+    ) -> str:
+        """Get enhanced claims analysis prompt."""
+        base_prompt = self.base_manager.format_prompt(
+            'fraud_detection',
+            claim_data=json.dumps(claim_data, indent=2),
+            claim_history="No previous claims",
+            fraud_rules=["Standard fraud detection rules"]
+        )
+        
+        if use_multi_perspective:
+            perspectives = [
+                "fraud investigator",
+                "claims adjuster",
+                "customer service",
+                "legal compliance"
+            ]
+            base_prompt = self.techniques.multi_perspective_prompt(base_prompt, perspectives)
+        
+        constraints = {
+            "response_format": "structured JSON",
+            "confidence_level": "include confidence scores",
+            "evidence_requirement": "cite specific evidence for all conclusions",
+            "regulatory_compliance": "ensure GDPR and industry compliance"
+        }
+        
+        return self.techniques.constraint_based_prompt(base_prompt, constraints)
+    
+    def get_enhanced_actuarial_prompt(
+        self,
+        analysis_data: Dict[str, Any],
+        analysis_type: str = "comprehensive"
+    ) -> str:
+        """Get enhanced actuarial analysis prompt."""
+        base_prompt = self.base_manager.format_prompt(
+            'risk_modeling',
+            historical_data=json.dumps(analysis_data.get('historical_data', {}), indent=2),
+            market_conditions=analysis_data.get('market_conditions', 'Standard market conditions'),
+            regulatory_info=analysis_data.get('regulatory_info', 'Current regulatory environment')
+        )
+        
+        if analysis_type == "comprehensive":
+            reasoning_steps = [
+                "Analyze historical loss patterns and trends",
+                "Evaluate current market conditions and competitive landscape",
+                "Assess regulatory changes and compliance requirements",
+                "Apply statistical models and predictive analytics",
+                "Consider emerging risks and future scenarios",
+                "Formulate pricing and reserving recommendations"
+            ]
+            base_prompt = self.techniques.chain_of_thought_prompt(base_prompt, reasoning_steps)
+        
+        return self.techniques.role_based_prompt(
+            base_prompt,
+            "Chief Actuary",
+            ["statistical modeling", "risk management", "regulatory compliance", "financial analysis"]
+        )
 
 # JSON Schema definitions for structured responses
 RESPONSE_SCHEMAS = {

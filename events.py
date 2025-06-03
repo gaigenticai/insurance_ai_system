@@ -22,30 +22,51 @@ REDIS_PORT = os.environ.get('REDIS_PORT', '6379')
 REDIS_PASSWORD = os.environ.get('REDIS_PASSWORD', '')
 REDIS_DB = os.environ.get('REDIS_DB', '0')
 
-# Initialize Redis client
-try:
-    if REDIS_PASSWORD:
-        redis_client = redis.Redis(
-            host=REDIS_HOST,
-            port=int(REDIS_PORT),
-            password=REDIS_PASSWORD,
-            db=int(REDIS_DB),
-            decode_responses=True
-        )
-    else:
-        redis_client = redis.Redis(
-            host=REDIS_HOST,
-            port=int(REDIS_PORT),
-            db=int(REDIS_DB),
-            decode_responses=True
-        )
+# Initialize Redis client lazily
+redis_client = None
+
+def initialize_redis_client():
+    """Initialize Redis client"""
+    global redis_client
     
-    # Test connection
-    redis_client.ping()
-    logger.info("Redis connection established successfully")
-except Exception as e:
-    logger.error(f"Failed to connect to Redis: {e}")
-    redis_client = None
+    # Skip initialization if disabled
+    if os.getenv('SKIP_REDIS_INIT', '').lower() == 'true':
+        logger.info("Redis initialization skipped (SKIP_REDIS_INIT=true)")
+        return
+    
+    if redis_client is not None:
+        logger.info("Redis client already initialized")
+        return
+    
+    try:
+        if REDIS_PASSWORD:
+            redis_client = redis.Redis(
+                host=REDIS_HOST,
+                port=int(REDIS_PORT),
+                password=REDIS_PASSWORD,
+                db=int(REDIS_DB),
+                decode_responses=True
+            )
+        else:
+            redis_client = redis.Redis(
+                host=REDIS_HOST,
+                port=int(REDIS_PORT),
+                db=int(REDIS_DB),
+                decode_responses=True
+            )
+        
+        # Test connection
+        redis_client.ping()
+        logger.info("Redis connection established successfully")
+    except Exception as e:
+        logger.error(f"Failed to connect to Redis: {e}")
+        redis_client = None
+
+def get_redis_client():
+    """Get Redis client, initializing if needed"""
+    if redis_client is None:
+        initialize_redis_client()
+    return redis_client
 
 
 def publish_event(event_type: str, payload: Dict[str, Any]) -> bool:
@@ -80,7 +101,9 @@ def publish_event(event_type: str, payload: Dict[str, Any]) -> bool:
         
         # Publish to Redis Stream
         stream_name = f"insurance_ai:{event_type}"
-        redis_client.xadd(stream_name, {'payload': payload_str})
+        client = get_redis_client()
+        if client:
+            client.xadd(stream_name, {'payload': payload_str})
         
         # Also store in events table if DB is available
         try:
@@ -125,22 +148,28 @@ def subscribe_to_events(event_types: List[str], callback: Callable[[Dict[str, An
     if not consumer_name:
         consumer_name = f"consumer-{uuid.uuid4().hex[:8]}"
     
+    # Get Redis client
+    client = get_redis_client()
+    if not client:
+        logger.error("Redis client not available for event subscription")
+        return
+    
     # Create streams and consumer groups if they don't exist
     for event_type in event_types:
         stream_name = f"insurance_ai:{event_type}"
         try:
             # Create stream if it doesn't exist
-            redis_client.xinfo_stream(stream_name)
+            client.xinfo_stream(stream_name)
         except redis.exceptions.ResponseError:
             # Stream doesn't exist, create it with an empty message
-            redis_client.xadd(stream_name, {'init': 'init'})
+            client.xadd(stream_name, {'init': 'init'})
         
         try:
             # Create consumer group if it doesn't exist
-            redis_client.xinfo_groups(stream_name)
+            client.xinfo_groups(stream_name)
         except redis.exceptions.ResponseError:
             # Group doesn't exist, create it
-            redis_client.xgroup_create(stream_name, consumer_group, id='0', mkstream=True)
+            client.xgroup_create(stream_name, consumer_group, id='0', mkstream=True)
     
     # Subscribe to streams
     streams = {f"insurance_ai:{event_type}": '>' for event_type in event_types}
@@ -150,7 +179,7 @@ def subscribe_to_events(event_types: List[str], callback: Callable[[Dict[str, An
     while True:
         try:
             # Read new messages
-            messages = redis_client.xreadgroup(
+            messages = client.xreadgroup(
                 consumer_group,
                 consumer_name,
                 streams,
@@ -169,7 +198,7 @@ def subscribe_to_events(event_types: List[str], callback: Callable[[Dict[str, An
                         callback(payload)
                         
                         # Acknowledge message
-                        redis_client.xack(stream, consumer_group, message_id)
+                        client.xack(stream, consumer_group, message_id)
                     except Exception as e:
                         logger.error(f"Error processing message {message_id}: {e}")
         except Exception as e:
