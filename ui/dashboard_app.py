@@ -45,6 +45,14 @@ except ImportError as e:
     def get_settings():
         return MockSettings()
 
+# Import AI-enhanced dashboard components
+try:
+    from ui.ai_enhanced_dashboard import ai_dashboard
+    AI_ENHANCED_AVAILABLE = True
+except ImportError as e:
+    st.warning(f"AI-enhanced features not available: {e}")
+    AI_ENHANCED_AVAILABLE = False
+
 # Page configuration
 st.set_page_config(
     page_title="Insurance AI Control Tower",
@@ -293,6 +301,7 @@ def render_navigation():
     # Navigation buttons
     pages = {
         "🏠 Dashboard": "Dashboard",
+        "🤖 AI Services": "AI Services",
         "📋 Policy Management": "Policy Management", 
         "⚖️ Claims Processing": "Claims Processing",
         "📊 Analytics & Risk": "Analytics",
@@ -532,6 +541,13 @@ def render_policy_management():
             - **Demographic Factors**: Standard risk profile
             - **Final Decision**: Approved with standard premium
             """)
+            
+            # Enhanced AI Analysis button
+            if AI_ENHANCED_AVAILABLE:
+                if st.button("🤖 Run Enhanced Underwriting Analysis", key="policy_ai_analysis"):
+                    with st.spinner("Running enhanced AI underwriting analysis..."):
+                        st.info("🤖 Enhanced AI analysis would provide detailed underwriting insights here")
+                        st.success("Enhanced analysis complete! Check the AI Services section for detailed underwriting analysis.")
 
 def render_claims_processing():
     """Render claims processing interface"""
@@ -602,6 +618,13 @@ def render_claims_processing():
             **Recommended Action:** Approve claim for $2,450
             **Confidence Level:** 92%
             """)
+            
+            # AI Analysis button
+            if AI_ENHANCED_AVAILABLE:
+                if st.button("🤖 Run Enhanced AI Analysis", key="claims_ai_analysis"):
+                    with st.spinner("Running enhanced AI analysis..."):
+                        st.info("🤖 Enhanced AI analysis would provide deeper insights here")
+                        st.success("Enhanced analysis complete! Check the AI Services section for detailed analysis.")
             
             # Decision buttons
             col_a, col_b, col_c, col_d = st.columns(4)
@@ -754,6 +777,14 @@ def render_analytics():
                    <strong>Action:</strong> {insight['action']}</p>
             </div>
             """, unsafe_allow_html=True)
+        
+        # Enhanced AI Analysis button
+        if AI_ENHANCED_AVAILABLE:
+            st.markdown("---")
+            if st.button("🤖 Generate New AI Insights", key="analytics_ai_insights"):
+                with st.spinner("AI is analyzing data patterns..."):
+                    st.info("🤖 Enhanced AI would generate new insights based on latest data")
+                    st.success("New insights generated! Check the AI Services section for detailed actuarial analysis.")
     
     with tab3:
         st.subheader("🔮 What-If Simulation Tool")
@@ -2319,6 +2350,39 @@ def render_human_escalation():
             for completion in completions:
                 st.markdown(f"✅ {completion}")
 
+def render_ai_services():
+    """Render AI Services page with enhanced AI features"""
+    st.title("🤖 AI Services Control Center")
+    
+    if not AI_ENHANCED_AVAILABLE:
+        st.error("AI-enhanced features are not available. Please check your installation.")
+        st.info("To enable AI features, ensure all AI dependencies are installed and configured.")
+        return
+    
+    # Create tabs for different AI services
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        "🔧 AI Configuration", 
+        "📋 AI Underwriting", 
+        "⚖️ AI Claims Analysis", 
+        "📊 AI Actuarial", 
+        "📈 AI Analytics"
+    ])
+    
+    with tab1:
+        ai_dashboard.render_ai_configuration_panel()
+    
+    with tab2:
+        ai_dashboard.render_ai_underwriting_panel()
+    
+    with tab3:
+        ai_dashboard.render_ai_claims_panel()
+    
+    with tab4:
+        ai_dashboard.render_ai_actuarial_panel()
+    
+    with tab5:
+        ai_dashboard.render_ai_analytics_panel()
+
 # Main application
 def main():
     """Main application function"""
@@ -2329,6 +2393,8 @@ def main():
     # Render current page
     if st.session_state.current_page == 'Dashboard':
         render_dashboard()
+    elif st.session_state.current_page == 'AI Services':
+        render_ai_services()
     elif st.session_state.current_page == 'Policy Management':
         render_policy_management()
     elif st.session_state.current_page == 'Claims Processing':

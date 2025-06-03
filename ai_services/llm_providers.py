@@ -574,5 +574,8 @@ class LLMProviderFactory:
             return AnthropicProvider(config)
         elif provider_type.lower() in ['local', 'ollama', 'vllm', 'lmstudio', 'textgen', 'llamacpp']:
             return LocalLLMProvider(config)
+        elif provider_type.lower() == 'mock':
+            from .mock_ai_provider import MockAIProvider
+            return MockAIProvider(config)
         else:
             raise ValueError(f"Unsupported provider type: {provider_type}")

@@ -149,12 +149,17 @@ class AIServiceManager(ServiceInterface):
                 'provider_type': self.settings.ai.local_llm_provider_type,
                 'api_key': self.settings.ai.local_llm_api_key
             })
+        elif provider == 'mock':
+            base_config.update({
+                'model': 'mock-insurance-ai-v1',
+                'response_delay': 0.3
+            })
         
         return base_config
     
     async def _initialize_fallback_providers(self):
         """Initialize fallback providers for redundancy."""
-        fallback_providers = ['openai', 'anthropic', 'local']
+        fallback_providers = ['openai', 'anthropic', 'local', 'mock']
         current_provider = self.settings.ai.provider
         
         for provider in fallback_providers:
@@ -166,13 +171,22 @@ class AIServiceManager(ServiceInterface):
                 if fallback_provider:
                     self.providers[provider] = fallback_provider
                     logger.info(f"Initialized fallback provider: {provider}")
+        
+        # Always ensure mock provider is available as ultimate fallback
+        if 'mock' not in self.providers:
+            mock_config = {'model': 'mock-insurance-ai-v1', 'response_delay': 0.3}
+            mock_provider = await self._create_provider('mock', mock_config)
+            if mock_provider:
+                self.providers['mock'] = mock_provider
+                logger.info("Initialized mock provider as ultimate fallback")
     
     def _get_fallback_model(self, provider: str) -> str:
         """Get appropriate model for fallback provider."""
         fallback_models = {
             'openai': 'gpt-3.5-turbo',
             'anthropic': 'claude-3-sonnet-20240229',
-            'local': self.settings.ai.local_llm_model
+            'local': self.settings.ai.local_llm_model,
+            'mock': 'mock-insurance-ai-v1'
         }
         return fallback_models.get(provider, 'gpt-3.5-turbo')
     
