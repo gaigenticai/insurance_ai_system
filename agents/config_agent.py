@@ -299,6 +299,115 @@ class ConfigAgent:
             logger.error(f"Error updating module configuration for {module_type}: {e}")
             return False
     
+    def get_ai_configuration(self) -> Dict[str, Any]:
+        """
+        Get AI configuration for the institution.
+        
+        Returns:
+            AI configuration dictionary
+        """
+        if not self.institution_id:
+            logger.error("Cannot get AI configuration: Institution not loaded")
+            return self._get_default_ai_config()
+        
+        try:
+            # Query AI configuration
+            query = """
+                SELECT * FROM insurance_ai.ai_configurations
+                WHERE institution_id = %(institution_id)s AND active = TRUE
+            """
+            
+            results = execute_query(query, {'institution_id': self.institution_id})
+            
+            if results:
+                return results[0].get('configuration', {})
+            
+            logger.info(f"No AI configuration found for institution, using defaults")
+            return self._get_default_ai_config()
+            
+        except Exception as e:
+            logger.error(f"Error getting AI configuration: {e}")
+            return self._get_default_ai_config()
+    
+    def _get_default_ai_config(self) -> Dict[str, Any]:
+        """Get default AI configuration."""
+        import os
+        
+        config = {
+            'providers': {}
+        }
+        
+        # OpenAI configuration
+        openai_key = os.getenv('OPENAI_API_KEY')
+        if openai_key:
+            config['providers']['openai'] = {
+                'type': 'openai',
+                'api_key': openai_key,
+                'model': os.getenv('OPENAI_MODEL', 'gpt-4'),
+                'temperature': float(os.getenv('OPENAI_TEMPERATURE', '0.7')),
+                'max_tokens': int(os.getenv('OPENAI_MAX_TOKENS', '1000')),
+                'default': True
+            }
+        
+        # Local LLM configuration
+        local_url = os.getenv('LOCAL_LLM_URL')
+        if local_url:
+            config['providers']['local'] = {
+                'type': 'local',
+                'base_url': local_url,
+                'model': os.getenv('LOCAL_LLM_MODEL', 'llama2'),
+                'provider_type': os.getenv('LOCAL_LLM_TYPE', 'ollama'),
+                'temperature': float(os.getenv('LOCAL_LLM_TEMPERATURE', '0.7')),
+                'max_tokens': int(os.getenv('LOCAL_LLM_MAX_TOKENS', '1000')),
+                'default': not openai_key  # Use as default if no OpenAI key
+            }
+        
+        return config
+    
+    def update_ai_configuration(self, configuration: Dict[str, Any]) -> bool:
+        """
+        Update AI configuration for the institution.
+        
+        Args:
+            configuration: New AI configuration dictionary
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        if not self.institution_id:
+            logger.error("Cannot update AI configuration: Institution not loaded")
+            return False
+        
+        try:
+            # Check if AI configuration exists
+            query = """
+                SELECT id FROM insurance_ai.ai_configurations
+                WHERE institution_id = %(institution_id)s
+            """
+            
+            results = execute_query(query, {'institution_id': self.institution_id})
+            
+            if results:
+                # Update existing configuration
+                config_id = results[0]['id']
+                return update_record(
+                    'ai_configurations',
+                    config_id,
+                    {'configuration': configuration}
+                )
+            else:
+                # Create new configuration
+                insert_record('ai_configurations', {
+                    'institution_id': self.institution_id,
+                    'configuration': configuration,
+                    'active': True
+                })
+                return True
+            
+        except Exception as e:
+            logger.error(f"Error updating AI configuration: {e}")
+            return False
+
     def log_audit_event(self, entity_type: str, entity_id: str, action: str, actor: str, details: Dict = None) -> bool:
         """
         Log an audit event.

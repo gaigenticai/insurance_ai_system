@@ -5,9 +5,11 @@ from agents.claims.fraud_detector_agent import FraudDetectorAgent
 from agents.claims.auto_resolution_agent import AutoResolutionAgent
 from agents.claims.escalation_agent import EscalationAgent
 from agents.claims.ethics_logger_agent import EthicsLoggerAgent
+from ai_services.ai_agents import AIClaimsAgent
 from typing import Dict, Any
 import logging
 import json # For ethics logging data
+import asyncio
 # Trigger redeploy
 
 class ClaimsFlow:
@@ -23,7 +25,8 @@ class ClaimsFlow:
         self.resolution_agent = AutoResolutionAgent(config_agent)
         self.escalation_agent = EscalationAgent(config_agent)
         self.ethics_agent = EthicsLoggerAgent(config_agent)
-        self.logger.info("ClaimsFlow initialized with all required agents.")
+        self.ai_agent = AIClaimsAgent(config_agent)
+        self.logger.info("ClaimsFlow initialized with all required agents including AI agent.")
 
     def run(self, claim_data: Dict[str, Any], institution_id: str) -> Dict[str, Any]:
         """Runs the full claims processing flow for a given claim.
@@ -73,17 +76,26 @@ class ClaimsFlow:
                 "escalation_reason": "Policy invalid."
             }
 
-        # 3. Detect Fraud
+        # 3. AI-Enhanced Analysis
+        ai_result = None
+        try:
+            ai_result = asyncio.run(self._process_with_ai(current_claim_state, institution_id))
+            current_claim_state['ai_analysis'] = ai_result
+            self.logger.info(f"AI analysis completed for claim {claim_id}")
+        except Exception as e:
+            self.logger.warning(f"AI analysis failed for claim {claim_id}: {str(e)}")
+
+        # 4. Detect Fraud (enhanced with AI insights)
         current_claim_state = self.fraud_agent.execute(current_claim_state, institution_id)
 
-        # 4. Attempt Auto-Resolution
+        # 5. Attempt Auto-Resolution (enhanced with AI insights)
         current_claim_state = self.resolution_agent.execute(current_claim_state, institution_id)
 
-        # 5. Check for Escalation
+        # 6. Check for Escalation
         # Pass fraud flags to escalation agent
         current_claim_state = self.escalation_agent.execute(current_claim_state, institution_id)
 
-        # 6. Ethics Logging for key decisions (Escalation / AutoApproval / Denial implicitly handled above)
+        # 7. Ethics Logging for key decisions (Escalation / AutoApproval / Denial implicitly handled above)
         if current_claim_state.get("escalate"): 
              self.ethics_agent.execute({
                 "claim_id": claim_id,
@@ -120,8 +132,22 @@ class ClaimsFlow:
             "status": final_status,
             "resolution": resolution_outcome,
             "payout_amount": payout,
-            "escalation_reason": reason if resolution_outcome == "Escalated" else None
+            "escalation_reason": reason if resolution_outcome == "Escalated" else None,
+            "ai_insights": ai_result
         }
+    
+    async def _process_with_ai(self, claim_data: Dict[str, Any], institution_id: str) -> Dict[str, Any]:
+        """
+        Process claim using AI-enhanced analysis.
+        
+        Args:
+            claim_data: Claim data dictionary
+            institution_id: Institution identifier
+            
+        Returns:
+            AI analysis result
+        """
+        return await self.ai_agent.execute(claim_data, institution_id)
 
 # Example Usage (for testing)
 # if __name__ == "__main__":

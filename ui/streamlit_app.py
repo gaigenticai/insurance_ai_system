@@ -1,6 +1,6 @@
 """
-Streamlit UI for the Insurance AI System.
-Provides a web interface for interacting with the API.
+Enhanced Streamlit UI for the Insurance AI System.
+Provides a web interface for interacting with the AI-enhanced insurance platform.
 """
 
 import os
@@ -8,6 +8,8 @@ import json
 import time
 import uuid
 import requests
+import asyncio
+import sys
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 
@@ -15,6 +17,19 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+
+# Add project root to path for AI integration
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, project_root)
+
+# Import AI components
+try:
+    from main import InsuranceAIApplication
+    from config.settings import get_settings
+    AI_AVAILABLE = True
+except ImportError as e:
+    st.warning(f"AI components not available: {e}")
+    AI_AVAILABLE = False
 
 # API configuration
 API_URL = os.environ.get("API_URL", "http://localhost:8080")
@@ -204,6 +219,80 @@ def run_actuarial(data: Dict) -> Dict:
     return api_request("/run/actuarial", method="POST", data=data)
 
 
+# AI Integration Functions
+@st.cache_resource
+def initialize_ai_system():
+    """Initialize the AI system (cached for performance)."""
+    if not AI_AVAILABLE:
+        return None
+    
+    try:
+        app = InsuranceAIApplication()
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(app.initialize())
+        return app
+    except Exception as e:
+        st.error(f"Failed to initialize AI system: {e}")
+        return None
+
+
+def run_ai_analysis(analysis_type: str, data: Dict) -> Dict:
+    """
+    Run AI analysis using the integrated AI system.
+    
+    Args:
+        analysis_type: Type of analysis (underwriting, claims, actuarial)
+        data: Input data for analysis
+        
+    Returns:
+        Analysis results
+    """
+    if not AI_AVAILABLE:
+        return {"status": "error", "message": "AI system not available"}
+    
+    app = initialize_ai_system()
+    if not app:
+        return {"status": "error", "message": "Failed to initialize AI system"}
+    
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        if analysis_type == "underwriting":
+            result = loop.run_until_complete(app.run_underwriting_analysis(data))
+        elif analysis_type == "claims":
+            result = loop.run_until_complete(app.run_claims_analysis(data))
+        elif analysis_type == "actuarial":
+            result = loop.run_until_complete(app.run_actuarial_analysis(data))
+        else:
+            return {"status": "error", "message": f"Unknown analysis type: {analysis_type}"}
+        
+        return {"status": "success", "result": result}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+def get_ai_system_status() -> Dict:
+    """Get AI system status and configuration."""
+    if not AI_AVAILABLE:
+        return {"available": False, "message": "AI components not loaded"}
+    
+    try:
+        settings = get_settings()
+        app = initialize_ai_system()
+        
+        return {
+            "available": True,
+            "provider": settings.ai.provider,
+            "model": settings.ai.model,
+            "initialized": app is not None,
+            "health": "healthy" if app else "unhealthy"
+        }
+    except Exception as e:
+        return {"available": False, "message": str(e)}
+
+
 def update_task_list():
     """Update the task list in the session state."""
     # In a real implementation, this would call the API to get all tasks
@@ -225,6 +314,19 @@ def render_sidebar():
     """Render the sidebar."""
     with st.sidebar:
         st.markdown('<div class="main-header">Insurance AI System</div>', unsafe_allow_html=True)
+        
+        # AI System Status
+        st.markdown('<div class="section-header">🤖 AI System Status</div>', unsafe_allow_html=True)
+        ai_status = get_ai_system_status()
+        
+        if ai_status["available"]:
+            st.success("✅ AI System Online")
+            st.info(f"Provider: {ai_status.get('provider', 'Unknown').upper()}")
+            st.info(f"Model: {ai_status.get('model', 'Unknown')}")
+            st.info(f"Health: {ai_status.get('health', 'Unknown').title()}")
+        else:
+            st.warning("⚠️ AI System Offline")
+            st.error(ai_status.get("message", "Unknown error"))
         
         # Institution selector
         st.markdown('<div class="section-header">Institution</div>', unsafe_allow_html=True)
@@ -306,6 +408,20 @@ def render_underwriting_form():
             value="Name: Alice Example\nDOB: 01/01/1990\nOther info..."
         )
         
+        # Analysis options
+        st.markdown("### Analysis Options")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            use_ai_analysis = st.checkbox("🤖 Use AI Analysis", value=True, help="Enable AI-powered risk assessment")
+        
+        with col2:
+            analysis_mode = st.selectbox(
+                "Analysis Mode",
+                ["Standard API", "Direct AI", "Both"],
+                help="Choose how to process the application"
+            )
+        
         submitted = st.form_submit_button("Submit Underwriting Application")
         
         if submitted:
@@ -327,23 +443,43 @@ def render_underwriting_form():
                 "document_text": document_text
             }
             
-            # Submit request
-            response = run_underwriting(data)
-            
-            if response.get("status") == "success":
-                st.success(f"Underwriting task created: {response.get('task_id')}")
+            # Process based on analysis mode
+            if analysis_mode in ["Direct AI", "Both"] and use_ai_analysis:
+                st.info("🤖 Running AI analysis...")
+                ai_result = run_ai_analysis("underwriting", data)
                 
-                # Add task to list
-                task = {
-                    "task_id": response.get("task_id"),
-                    "task_type": "underwriting",
-                    "status": "PENDING",
-                    "created_at": datetime.now().isoformat(),
-                    "updated_at": datetime.now().isoformat()
-                }
-                st.session_state.tasks.insert(0, task)
-            else:
-                st.error(f"Failed to create underwriting task: {response.get('message')}")
+                if ai_result["status"] == "success":
+                    st.success("✅ AI Analysis Complete!")
+                    
+                    # Display AI results
+                    with st.expander("🤖 AI Analysis Results"):
+                        result = ai_result["result"]
+                        st.json(result)
+                        
+                        if hasattr(result, 'content'):
+                            st.markdown("**AI Assessment:**")
+                            st.write(result.content)
+                else:
+                    st.error(f"AI Analysis failed: {ai_result['message']}")
+            
+            if analysis_mode in ["Standard API", "Both"]:
+                # Submit to standard API
+                response = run_underwriting(data)
+                
+                if response.get("status") == "success":
+                    st.success(f"Underwriting task created: {response.get('task_id')}")
+                    
+                    # Add task to list
+                    task = {
+                        "task_id": response.get("task_id"),
+                        "task_type": "underwriting",
+                        "status": "PENDING",
+                        "created_at": datetime.now().isoformat(),
+                        "updated_at": datetime.now().isoformat()
+                    }
+                    st.session_state.tasks.insert(0, task)
+                else:
+                    st.error(f"Failed to create underwriting task: {response.get('message')}")
 
 
 def render_claims_form():
