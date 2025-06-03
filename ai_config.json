@@ -1,0 +1,12 @@
+{
+  "ai_provider": "mock",
+  "ai_model": "mock-insurance-ai-v1",
+  "ai_enabled": true,
+  "ai_temperature": 0.7,
+  "ai_max_tokens": 2000,
+  "ai_timeout": 30,
+  "ai_max_retries": 3,
+  "ai_enable_fallback": true,
+  "ai_enable_caching": true,
+  "timestamp": "17023.019878567"
+}
