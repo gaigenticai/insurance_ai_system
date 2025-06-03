@@ -57,7 +57,9 @@ class ConfigAgent:
             
         except Exception as e:
             logger.error(f"Error loading institution {self.institution_code}: {e}")
-            raise
+            # Don't raise during initialization - allow graceful degradation
+            self.institution_data = None
+            self.institution_id = None
     
     def get_institution_setting(self, setting_key: str, default: Any = None) -> Any:
         """

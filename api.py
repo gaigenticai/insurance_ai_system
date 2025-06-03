@@ -51,8 +51,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize system components
-config_agent = ConfigAgent(os.path.join(os.path.dirname(os.path.abspath(__file__)), "config"))
+# Initialize system components lazily
+config_agent = None
+
+def get_config_agent():
+    """Get config agent, initializing if needed"""
+    global config_agent
+    if config_agent is None:
+        config_agent = ConfigAgent(os.path.join(os.path.dirname(os.path.abspath(__file__)), "config"))
+    return config_agent
 
 # Dependency for institution ID validation
 async def validate_institution(request: Request) -> str:
@@ -74,7 +81,7 @@ async def validate_institution(request: Request) -> str:
     
     # Validate institution exists in config
     try:
-        config_agent.get_config(institution_id)
+        get_config_agent().get_config(institution_id)
         return institution_id
     except Exception as e:
         logger.error(f"Invalid institution ID: {institution_id}, error: {str(e)}")
@@ -571,7 +578,7 @@ async def update_ai_configuration(
         if request.base_url:
             config_data["base_url"] = request.base_url
             
-        result = config_agent.update_ai_configuration(config_data)
+        result = get_config_agent().update_ai_configuration(config_data)
         
         return AIResponse(
             success=True,
@@ -588,7 +595,7 @@ async def get_ai_configuration(
 ):
     """Get current AI configuration settings."""
     try:
-        result = config_agent.get_ai_configuration()
+        result = get_config_agent().get_ai_configuration()
         return AIResponse(success=True, data=result)
         
     except Exception as e:

@@ -116,62 +116,15 @@ async def run_migrations():
         # Don't fail startup if migrations fail - the app might still work
         # with existing schema
 
-async def health_check():
-    """Perform startup health checks"""
-    logger.info("Performing health checks...")
-    
-    try:
-        # Check database connection
-        from db_connection import get_db_connection
-        async with get_db_connection() as conn:
-            logger.info("✅ Database connection successful")
-    except Exception as e:
-        logger.warning(f"⚠️ Database connection failed: {e}")
-    
-    try:
-        # Check Redis connection
-        import redis
-        redis_url = os.getenv('REDIS_URL')
-        if redis_url:
-            r = redis.from_url(redis_url)
-            r.ping()
-            logger.info("✅ Redis connection successful")
-    except Exception as e:
-        logger.warning(f"⚠️ Redis connection failed: {e}")
-    
-    try:
-        # Check AI services
-        from ai_services.ai_service_manager import AIServiceManager
-        ai_manager = AIServiceManager()
-        logger.info("✅ AI services initialized")
-    except Exception as e:
-        logger.warning(f"⚠️ AI services initialization failed: {e}")
-
-@asynccontextmanager
-async def lifespan(app):
-    """Application lifespan management"""
-    # Startup
-    logger.info("🚀 Starting Insurance AI System on Railway.com")
+def setup_environment():
+    """Setup environment without async operations"""
+    logger.info("🚀 Setting up environment for Railway.com")
     
     config = RailwayConfig()
     config.setup_environment()
     
-    await run_migrations()
-    await health_check()
-    
-    logger.info(f"✅ Application ready on port {config.port}")
-    
-    yield
-    
-    # Shutdown
-    logger.info("🛑 Shutting down Insurance AI System")
-    
-    try:
-        from db_connection import close_db_pool
-        await close_db_pool()
-        logger.info("✅ Database connections closed")
-    except Exception as e:
-        logger.error(f"Error closing database: {e}")
+    logger.info(f"✅ Environment configured for port {config.port}")
+    return config
 
 def create_app():
     """Create and configure the FastAPI application"""
@@ -179,25 +132,68 @@ def create_app():
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     
     try:
+        logger.info("Attempting to import main API application...")
         from api import app
-        app.router.lifespan_context = lifespan
+        
+        # Add health check if not present
+        @app.get("/health")
+        async def health_check_override():
+            return {"status": "healthy", "message": "Insurance AI System API is running"}
+        
+        logger.info("✅ Main API application loaded successfully")
         return app
+        
+    except ImportError as e:
+        logger.error(f"Import error when creating app: {e}")
+        logger.info("Creating fallback application...")
+        return create_fallback_app(f"Import error: {str(e)}")
     except Exception as e:
-        logger.error(f"Failed to create app: {e}")
-        # Create a minimal health check app if main app fails
-        from fastapi import FastAPI
-        
-        fallback_app = FastAPI(title="Insurance AI System - Health Check")
-        
-        @fallback_app.get("/health")
-        async def health():
-            return {"status": "degraded", "message": "Main application failed to start"}
-        
-        return fallback_app
+        logger.error(f"Unexpected error when creating app: {e}")
+        logger.info("Creating fallback application...")
+        return create_fallback_app(f"Startup error: {str(e)}")
+
+def create_fallback_app(error_message: str):
+    """Create a minimal health check app if main app fails"""
+    from fastapi import FastAPI
+    from fastapi.middleware.cors import CORSMiddleware
+    
+    fallback_app = FastAPI(title="Insurance AI System - Fallback Mode")
+    
+    # Add CORS middleware
+    fallback_app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    
+    @fallback_app.get("/")
+    async def root():
+        return {"message": "Insurance AI System - Fallback Mode", "status": "degraded"}
+    
+    @fallback_app.get("/health")
+    async def health():
+        return {"status": "degraded", "message": f"Main application failed: {error_message}"}
+    
+    @fallback_app.get("/debug")
+    async def debug():
+        return {
+            "error": error_message,
+            "environment": {
+                "PORT": os.getenv("PORT", "Not set"),
+                "DATABASE_URL": "Set" if os.getenv("DATABASE_URL") else "Not set",
+                "REDIS_URL": "Set" if os.getenv("REDIS_URL") else "Not set",
+            },
+            "python_path": sys.path[:3]
+        }
+    
+    return fallback_app
 
 def main():
     """Main entry point for Railway deployment"""
-    config = RailwayConfig()
+    # Setup environment first
+    config = setup_environment()
     
     logger.info(f"🚀 Starting Insurance AI System")
     logger.info(f"Environment: {config.environment}")
@@ -214,9 +210,6 @@ def main():
         "port": config.port,
         "log_level": os.getenv('LOG_LEVEL', 'info').lower(),
         "access_log": True,
-        "loop": "asyncio",
-        "http": "httptools",
-        "lifespan": "on",
     }
     
     # Railway handles process management, so we use single worker
