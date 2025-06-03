@@ -432,6 +432,212 @@ async def get_report(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ============================================================================
+# AI-Enhanced Endpoints
+# ============================================================================
+
+from pydantic import BaseModel, Field
+from datetime import datetime
+from ai_services.ai_service_manager import AIServiceManager
+from ai_services.ai_agents import AIUnderwritingAgent, AIClaimsAgent, AIActuarialAgent
+
+# AI Request/Response Models
+class AIUnderwritingRequest(BaseModel):
+    application_data: Dict[str, Any] = Field(..., description="Underwriting application data")
+    use_ai_only: bool = Field(default=False, description="Use AI-only processing")
+
+class AIClaimsRequest(BaseModel):
+    claim_data: Dict[str, Any] = Field(..., description="Claims data")
+    use_ai_only: bool = Field(default=False, description="Use AI-only processing")
+
+class AIActuarialRequest(BaseModel):
+    analysis_data: Dict[str, Any] = Field(..., description="Actuarial analysis data")
+    use_ai_only: bool = Field(default=False, description="Use AI-only processing")
+
+class AIConfigurationRequest(BaseModel):
+    provider: str = Field(..., description="AI provider (openai, anthropic, local)")
+    model_name: str = Field(..., description="Model name")
+    api_key: Optional[str] = Field(None, description="API key")
+    base_url: Optional[str] = Field(None, description="Base URL for local models")
+    temperature: float = Field(default=0.7, description="Model temperature")
+    max_tokens: int = Field(default=2000, description="Maximum tokens")
+
+class AIResponse(BaseModel):
+    success: bool
+    data: Optional[Dict[str, Any]] = None
+    error: Optional[str] = None
+    ai_insights: Optional[Dict[str, Any]] = None
+    processing_time: Optional[float] = None
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+# AI Service Manager dependency
+def get_ai_service_manager() -> AIServiceManager:
+    return AIServiceManager(config_agent)
+
+@app.post("/ai/underwriting/analyze", response_model=AIResponse, tags=["AI Services"])
+async def ai_underwriting_analysis(
+    request: AIUnderwritingRequest,
+    institution_id: str = Depends(validate_institution),
+    ai_manager: AIServiceManager = Depends(get_ai_service_manager)
+):
+    """Perform AI-enhanced underwriting analysis."""
+    try:
+        start_time = datetime.utcnow()
+        
+        ai_agent = AIUnderwritingAgent(config_agent)
+        result = await ai_agent.execute(request.application_data, institution_id)
+        
+        processing_time = (datetime.utcnow() - start_time).total_seconds()
+        
+        return AIResponse(
+            success=True,
+            data=result,
+            ai_insights=result,
+            processing_time=processing_time
+        )
+        
+    except Exception as e:
+        logger.error(f"AI underwriting analysis failed: {str(e)}")
+        return AIResponse(success=False, error=str(e))
+
+@app.post("/ai/claims/analyze", response_model=AIResponse, tags=["AI Services"])
+async def ai_claims_analysis(
+    request: AIClaimsRequest,
+    institution_id: str = Depends(validate_institution),
+    ai_manager: AIServiceManager = Depends(get_ai_service_manager)
+):
+    """Perform AI-enhanced claims analysis."""
+    try:
+        start_time = datetime.utcnow()
+        
+        ai_agent = AIClaimsAgent(config_agent)
+        result = await ai_agent.execute(request.claim_data, institution_id)
+        
+        processing_time = (datetime.utcnow() - start_time).total_seconds()
+        
+        return AIResponse(
+            success=True,
+            data=result,
+            ai_insights=result,
+            processing_time=processing_time
+        )
+        
+    except Exception as e:
+        logger.error(f"AI claims analysis failed: {str(e)}")
+        return AIResponse(success=False, error=str(e))
+
+@app.post("/ai/actuarial/analyze", response_model=AIResponse, tags=["AI Services"])
+async def ai_actuarial_analysis(
+    request: AIActuarialRequest,
+    institution_id: str = Depends(validate_institution),
+    ai_manager: AIServiceManager = Depends(get_ai_service_manager)
+):
+    """Perform AI-enhanced actuarial analysis."""
+    try:
+        start_time = datetime.utcnow()
+        
+        ai_agent = AIActuarialAgent(config_agent)
+        result = await ai_agent.execute(request.analysis_data, institution_id)
+        
+        processing_time = (datetime.utcnow() - start_time).total_seconds()
+        
+        return AIResponse(
+            success=True,
+            data=result,
+            ai_insights=result,
+            processing_time=processing_time
+        )
+        
+    except Exception as e:
+        logger.error(f"AI actuarial analysis failed: {str(e)}")
+        return AIResponse(success=False, error=str(e))
+
+@app.post("/ai/configuration", response_model=AIResponse, tags=["AI Services"])
+async def update_ai_configuration(
+    request: AIConfigurationRequest,
+    institution_id: str = Depends(validate_institution)
+):
+    """Update AI configuration settings."""
+    try:
+        config_data = {
+            "provider": request.provider,
+            "model_name": request.model_name,
+            "temperature": request.temperature,
+            "max_tokens": request.max_tokens
+        }
+        
+        if request.api_key:
+            config_data["api_key"] = request.api_key
+        if request.base_url:
+            config_data["base_url"] = request.base_url
+            
+        result = config_agent.update_ai_configuration(config_data)
+        
+        return AIResponse(
+            success=True,
+            data={"configuration_updated": True, "settings": result}
+        )
+        
+    except Exception as e:
+        logger.error(f"AI configuration update failed: {str(e)}")
+        return AIResponse(success=False, error=str(e))
+
+@app.get("/ai/configuration", response_model=AIResponse, tags=["AI Services"])
+async def get_ai_configuration(
+    institution_id: str = Depends(validate_institution)
+):
+    """Get current AI configuration settings."""
+    try:
+        result = config_agent.get_ai_configuration()
+        return AIResponse(success=True, data=result)
+        
+    except Exception as e:
+        logger.error(f"AI configuration retrieval failed: {str(e)}")
+        return AIResponse(success=False, error=str(e))
+
+@app.get("/ai/models/available", response_model=AIResponse, tags=["AI Services"])
+async def get_available_models():
+    """Get list of available AI models."""
+    try:
+        models = {
+            "openai": ["gpt-4", "gpt-4-turbo", "gpt-3.5-turbo", "gpt-3.5-turbo-16k"],
+            "anthropic": ["claude-3-opus-20240229", "claude-3-sonnet-20240229", "claude-3-haiku-20240307"],
+            "local": ["llama2-7b", "llama2-13b", "mistral-7b", "codellama-7b"]
+        }
+        
+        return AIResponse(success=True, data={"available_models": models})
+        
+    except Exception as e:
+        logger.error(f"Failed to get available models: {str(e)}")
+        return AIResponse(success=False, error=str(e))
+
+@app.get("/ai/health", response_model=AIResponse, tags=["AI Services"])
+async def ai_health_check(
+    ai_manager: AIServiceManager = Depends(get_ai_service_manager)
+):
+    """Check AI services health status."""
+    try:
+        health_status = {
+            "ai_service_manager": "healthy",
+            "configuration": "loaded",
+            "providers": {}
+        }
+        
+        # Test each provider
+        for provider_name in ["openai", "anthropic", "local"]:
+            try:
+                ai_manager.get_provider(provider_name)
+                health_status["providers"][provider_name] = "available"
+            except:
+                health_status["providers"][provider_name] = "unavailable"
+        
+        return AIResponse(success=True, data=health_status)
+        
+    except Exception as e:
+        logger.error(f"AI health check failed: {str(e)}")
+        return AIResponse(success=False, error=str(e))
+
+
 # Run the API server if executed directly
 if __name__ == "__main__":
     import argparse

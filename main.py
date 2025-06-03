@@ -1,214 +1,383 @@
 #!/usr/bin/env python3
 """
 Main module for the Insurance AI System.
-Entry point for the application with PostgreSQL integration.
+
+Modular, scalable entry point with full configurability and no hardcoded values.
+Supports Railway.com deployment and local development.
 """
 
 import argparse
 import logging
 import os
 import sys
-from typing import Dict, Any
-import subprocess
+import asyncio
+from typing import Dict, Any, Optional
+import signal
 
-# Add project root parent to Python path to allow package imports
+# Add project root to Python path
 project_root = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.dirname(project_root))
+sys.path.insert(0, project_root)
 
-# Import from db_connection for PostgreSQL operations
-from db_connection import execute_query, close_all_connections
+# Import modular components
+from config.settings import get_settings, Settings
+from core.service_bootstrap import initialize_services, shutdown_services, BootstrapConfig
+from core.service_registry import get_service
+from ai_services.ai_service_manager import AIServiceManager
 
-# Import original modules and agents
-from agents.config_agent import ConfigAgent
-from modules.underwriting.flow import UnderwritingFlow
-from modules.claims.flow import ClaimsFlow
-from modules.actuarial.flow import ActuarialFlow
-from application_manager import ApplicationManager
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler(os.path.join(project_root, 'logs', 'insurance_ai.log'), 'a')
-    ]
-)
 logger = logging.getLogger(__name__)
 
-# Configure formatter for console output
-formatter = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-
-
-def run_underwriting_examples(config_agent, institution_id):
-    """Run example underwriting scenarios for demonstration and testing."""
-    logger.info(f"Running Underwriting Flow Examples for {institution_id}")
-    print(f"\n--- Running Underwriting Flow Examples for {institution_id} ---")
+class InsuranceAIApplication:
+    """
+    Main application class for the Insurance AI System
     
-    # Initialize application manager
-    app_manager = ApplicationManager(config_agent.institution_id)
+    Provides modular, scalable application management with full configurability.
+    """
     
-    # Example application with enough data
-    app_data_complete = {
-        "applicant_id": "UW-TEST-222",
-        "full_name": "Alice Example",
-        "address": "123 Main St",
-        "date_of_birth": "01/01/1990",
-        "income": 80000,
-        "credit_score": 720,
-        "debt_to_income_ratio": 0.3,
-        "address_location_tag": "SafeZoneC",
-        "document_text": "Name: Alice Example\nDOB: 01/01/1990\nOther info..."
-    }
+    def __init__(self):
+        self.settings = get_settings()
+        self.bootstrap = None
+        self._shutdown_event = asyncio.Event()
+        self._setup_logging()
     
-    # Create application
-    application_id = app_manager.create_application(app_data_complete)
-    
-    if not application_id:
-        logger.error("Failed to create application")
-        return
-    
-    logger.info(f"Created application: {application_id}")
-    
-    # Initialize underwriting flow
-    flow = UnderwritingFlow(config_agent)
-    
-    # Process application
-    result = flow.process_application(application_id)
-    
-    logger.info(f"Underwriting result: {result}")
-    
-    # Get decision
-    decision = flow.get_underwriting_decision(application_id)
-    
-    if decision:
-        logger.info(f"Decision details: {decision}")
-    else:
-        logger.warning("No decision found")
-    
-    # Example with incomplete data
-    app_data_incomplete = {
-        "applicant_id": "UW-TEST-002",
-        "full_name": "Bob Example",
-        "address": "456 Oak St",
-        # Missing other fields
-    }
-    
-    # Create application
-    application_id2 = app_manager.create_application(app_data_incomplete)
-    
-    if application_id2:
-        logger.info(f"Created incomplete application: {application_id2}")
+    def _setup_logging(self):
+        """Setup logging configuration"""
+        log_level = getattr(logging, self.settings.app.log_level.upper())
         
-        # Process application
-        result2 = flow.process_application(application_id2)
-        logger.info(f"Underwriting result for incomplete application: {result2}")
-
-
-def run_claims_examples(config_agent, institution_id):
-    """Run example claims scenarios for demonstration and testing."""
-    logger.info(f"Running Claims Flow Examples for {institution_id}")
-    print(f"\n--- Running Claims Flow Examples for {institution_id} ---")
+        # Create logs directory if it doesn't exist
+        log_dir = os.path.join(project_root, 'logs')
+        os.makedirs(log_dir, exist_ok=True)
+        
+        # Configure logging
+        logging.basicConfig(
+            level=log_level,
+            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+            handlers=[
+                logging.StreamHandler(),
+                logging.FileHandler(os.path.join(log_dir, 'insurance_ai.log'), 'a')
+            ]
+        )
     
-    # Initialize claims flow
-    flow = ClaimsFlow(config_agent)
+    async def initialize(self):
+        """Initialize the application"""
+        logger.info("Initializing Insurance AI System")
+        
+        try:
+            # Create bootstrap configuration
+            bootstrap_config = BootstrapConfig(
+                enable_ai_services=self.settings.ai.enabled,
+                enable_plugins=self.settings.app.enable_plugins,
+                enable_monitoring=self.settings.app.enable_monitoring,
+                enable_caching=self.settings.cache.enabled,
+                startup_timeout=self.settings.app.startup_timeout
+            )
+            
+            # Initialize services
+            self.bootstrap = await initialize_services(bootstrap_config)
+            
+            # Setup signal handlers for graceful shutdown
+            self._setup_signal_handlers()
+            
+            logger.info("Insurance AI System initialized successfully")
+            
+        except Exception as e:
+            logger.error(f"Failed to initialize application: {e}")
+            raise
     
-    # Example claim data
-    claim_data = {
-        "claim_id": "CL-TEST-001",
-        "policy_id": "POL-123456",
-        "claimant_name": "Alice Example",
-        "incident_date": "2023-05-15",
-        "claim_amount": 5000,
-        "incident_description": "Water damage from burst pipe"
-    }
+    def _setup_signal_handlers(self):
+        """Setup signal handlers for graceful shutdown"""
+        def signal_handler(signum, frame):
+            logger.info(f"Received signal {signum}, initiating shutdown")
+            self._shutdown_event.set()
+        
+        signal.signal(signal.SIGINT, signal_handler)
+        signal.signal(signal.SIGTERM, signal_handler)
     
-    # Process claim
-    result = flow.run(claim_data, args.institution)
-    
-    logger.info(f"Claims processing result: {result}")
-
-
-def run_actuarial_examples(config_agent, institution_id):
-    """Run example actuarial scenarios for demonstration and testing."""
-    logger.info(f"Running Actuarial Flow Examples for {institution_id}")
-    print(f"\n--- Running Actuarial Flow Examples for {institution_id} ---")
-    
-    # Initialize actuarial flow
-    flow = ActuarialFlow(config_agent)
-    
-    # Example actuarial calculation
-    result = flow.calculate_risk_model({
-        "raw_data": [
-            {
-                "age_group": "30-40",
-                "region": "Northeast",
-                "coverage_type": "comprehensive",
-                "claim_history": 2,
-                "premium_paid": 1200
+    async def run_underwriting_analysis(self, application_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Run underwriting analysis using AI services"""
+        try:
+            ai_manager = await get_service(AIServiceManager)
+            response = await ai_manager.analyze_underwriting(application_data)
+            
+            return {
+                "status": "success",
+                "analysis": response.content,
+                "confidence": response.confidence,
+                "metadata": response.metadata
             }
-        ],
-        "institution_id": institution_id
-    })
+            
+        except Exception as e:
+            logger.error(f"Underwriting analysis failed: {e}")
+            return {
+                "status": "error",
+                "error": str(e)
+            }
     
-    logger.info(f"Actuarial calculation result: {result}")
+    async def run_claims_analysis(self, claim_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Run claims analysis using AI services"""
+        try:
+            ai_manager = await get_service(AIServiceManager)
+            response = await ai_manager.analyze_claims(claim_data)
+            
+            return {
+                "status": "success",
+                "analysis": response.content,
+                "confidence": response.confidence,
+                "metadata": response.metadata
+            }
+            
+        except Exception as e:
+            logger.error(f"Claims analysis failed: {e}")
+            return {
+                "status": "error",
+                "error": str(e)
+            }
+    
+    async def run_actuarial_analysis(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Run actuarial analysis using AI services"""
+        try:
+            ai_manager = await get_service(AIServiceManager)
+            response = await ai_manager.analyze_actuarial(data)
+            
+            return {
+                "status": "success",
+                "analysis": response.content,
+                "confidence": response.confidence,
+                "metadata": response.metadata
+            }
+            
+        except Exception as e:
+            logger.error(f"Actuarial analysis failed: {e}")
+            return {
+                "status": "error",
+                "error": str(e)
+            }
+    
+    async def run_demo_scenarios(self):
+        """Run demonstration scenarios"""
+        logger.info("Running demonstration scenarios")
+        
+        # Underwriting demo
+        underwriting_data = {
+            "applicant_id": "DEMO-UW-001",
+            "full_name": "John Demo",
+            "age": 35,
+            "income": 75000,
+            "credit_score": 720,
+            "debt_to_income_ratio": 0.25,
+            "property_value": 300000,
+            "loan_amount": 240000
+        }
+        
+        print("\n=== Underwriting Analysis Demo ===")
+        uw_result = await self.run_underwriting_analysis(underwriting_data)
+        print(f"Status: {uw_result['status']}")
+        if uw_result['status'] == 'success':
+            print(f"Analysis: {uw_result['analysis']}")
+            print(f"Confidence: {uw_result['confidence']}")
+        else:
+            print(f"Error: {uw_result['error']}")
+        
+        # Claims demo
+        claims_data = {
+            "claim_id": "DEMO-CL-001",
+            "policy_number": "POL-123456",
+            "claim_type": "auto_accident",
+            "incident_date": "2024-01-15",
+            "description": "Rear-end collision at intersection",
+            "estimated_damage": 5000,
+            "claimant_statement": "I was stopped at a red light when the other vehicle hit me from behind"
+        }
+        
+        print("\n=== Claims Analysis Demo ===")
+        claims_result = await self.run_claims_analysis(claims_data)
+        print(f"Status: {claims_result['status']}")
+        if claims_result['status'] == 'success':
+            print(f"Analysis: {claims_result['analysis']}")
+            print(f"Confidence: {claims_result['confidence']}")
+        else:
+            print(f"Error: {claims_result['error']}")
+        
+        # Actuarial demo
+        actuarial_data = {
+            "analysis_type": "risk_assessment",
+            "demographic_data": {
+                "age_group": "25-35",
+                "location": "urban",
+                "occupation": "professional"
+            },
+            "historical_claims": [
+                {"year": 2023, "claims": 150, "total_cost": 750000},
+                {"year": 2022, "claims": 140, "total_cost": 680000}
+            ]
+        }
+        
+        print("\n=== Actuarial Analysis Demo ===")
+        actuarial_result = await self.run_actuarial_analysis(actuarial_data)
+        print(f"Status: {actuarial_result['status']}")
+        if actuarial_result['status'] == 'success':
+            print(f"Analysis: {actuarial_result['analysis']}")
+            print(f"Confidence: {actuarial_result['confidence']}")
+        else:
+            print(f"Error: {actuarial_result['error']}")
+    
+    async def health_check(self) -> Dict[str, Any]:
+        """Perform application health check"""
+        if not self.bootstrap:
+            return {"status": "not_initialized"}
+        
+        return await self.bootstrap.health_check()
+    
+    async def shutdown(self):
+        """Shutdown the application gracefully"""
+        logger.info("Shutting down Insurance AI System")
+        
+        if self.bootstrap:
+            await shutdown_services()
+        
+        logger.info("Insurance AI System shutdown complete")
+    
+    async def run(self):
+        """Run the application"""
+        try:
+            await self.initialize()
+            
+            # Run demo scenarios if in demo mode
+            if self.settings.app.demo_mode:
+                await self.run_demo_scenarios()
+            
+            # Wait for shutdown signal
+            logger.info("Insurance AI System is running. Press Ctrl+C to stop.")
+            await self._shutdown_event.wait()
+            
+        except KeyboardInterrupt:
+            logger.info("Received keyboard interrupt")
+        except Exception as e:
+            logger.error(f"Application error: {e}")
+            raise
+        finally:
+            await self.shutdown()
 
+def create_cli_parser() -> argparse.ArgumentParser:
+    """Create command line argument parser"""
+    parser = argparse.ArgumentParser(
+        description='Insurance AI System - Modular, Scalable AI-Enhanced Insurance Platform'
+    )
+    
+    parser.add_argument(
+        '--mode', 
+        type=str, 
+        choices=['server', 'demo', 'health', 'ui'],
+        default='demo',
+        help='Application mode (default: demo)'
+    )
+    
+    parser.add_argument(
+        '--config',
+        type=str,
+        help='Path to configuration file'
+    )
+    
+    parser.add_argument(
+        '--verbose', 
+        action='store_true',
+        help='Enable verbose logging'
+    )
+    
+    parser.add_argument(
+        '--port',
+        type=int,
+        default=8080,
+        help='Port for UI server (default: 8080)'
+    )
+    
+    parser.add_argument(
+        '--host',
+        type=str,
+        default='0.0.0.0',
+        help='Host for UI server (default: 0.0.0.0)'
+    )
+    
+    return parser
 
-def main(args):
-    """Main entry point for the Insurance AI System."""
-    parser = argparse.ArgumentParser(description='Insurance AI System')
-    parser.add_argument('--institution', type=str, default='institution_a',
-                        help='Institution code to use')
-    parser.add_argument('--module', type=str, choices=['underwriting', 'claims', 'actuarial', 'all'],
-                        default='all', help='Module to run examples for')
-    parser.add_argument('--verbose', action='store_true',
-                        help='Enable verbose logging')
+async def main_async():
+    """Async main function"""
+    parser = create_cli_parser()
     args = parser.parse_args()
     
-    # Set logging level based on verbosity
+    # Override settings if config file provided
+    if args.config:
+        os.environ['CONFIG_FILE'] = args.config
+    
+    # Override log level if verbose
     if args.verbose:
-        logging.getLogger().setLevel(logging.DEBUG)
+        os.environ['LOG_LEVEL'] = 'DEBUG'
+    
+    # Create and run application
+    app = InsuranceAIApplication()
     
     try:
-        # Initialize configuration agent
-        config_agent = ConfigAgent(args.institution)
+        if args.mode == 'health':
+            # Health check mode
+            await app.initialize()
+            health = await app.health_check()
+            print(f"Health Status: {health['status']}")
+            print(f"Services: {len(health.get('services', {}))}")
+            for service, status in health.get('services', {}).items():
+                print(f"  {service}: {status.get('status', 'unknown')}")
+            return 0 if health['status'] == 'healthy' else 1
         
-        if not config_agent.institution_id:
-            logger.error(f"Institution not found: {args.institution}")
+        elif args.mode == 'demo':
+            # Demo mode - run demonstration scenarios
+            await app.initialize()
+            await app.run_demo_scenarios()
+            return 0
+        
+        elif args.mode == 'server':
+            # Server mode - run as service
+            await app.run()
+            return 0
+        
+        elif args.mode == 'ui':
+            # UI mode - launch Streamlit interface
+            print("Launching Streamlit UI...")
+            streamlit_app_path = os.path.join(project_root, "ui", "streamlit_app.py")
+            
+            if os.path.exists(streamlit_app_path):
+                import subprocess
+                subprocess.run([
+                    "streamlit",
+                    "run",
+                    streamlit_app_path,
+                    "--server.port", str(args.port),
+                    "--server.address", args.host
+                ])
+            else:
+                print("Streamlit UI not available")
+                return 1
+            return 0
+        
+        else:
+            parser.print_help()
             return 1
-        
-        # Run examples based on module selection
-        if args.module in ['underwriting', 'all']:
-            run_underwriting_examples(config_agent, args.institution)
-        
-        if args.module in ['claims', 'all']:
-            run_claims_examples(config_agent, args.institution)
-        
-        if args.module in ['actuarial', 'all']:
-            run_actuarial_examples(config_agent, args.institution)
-        
+    
+    except KeyboardInterrupt:
+        logger.info("Received keyboard interrupt")
         return 0
     except Exception as e:
-        logger.error(f"Error in main: {e}", exc_info=True)
+        logger.error(f"Application error: {e}")
         return 1
     finally:
-        # Close all database connections
-        close_all_connections()
+        await app.shutdown()
 
+def main():
+    """Main entry point"""
+    try:
+        return asyncio.run(main_async())
+    except KeyboardInterrupt:
+        return 0
+    except Exception as e:
+        print(f"Fatal error: {e}")
+        return 1
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        # If arguments are passed, expect --institution etc.
-        sys.exit(main(sys.argv))
-    else:
-        # No arguments passed → launch Streamlit UI
-        print("Launching Streamlit UI (no args detected)...")
-        # Use project_root to build the correct path to streamlit_app.py
-        streamlit_app_path = os.path.join(project_root, "ui", "streamlit_app.py")
-        subprocess.run([
-            "streamlit",
-            "run",
-            streamlit_app_path,
-            "--server.port", "8080",
-            "--server.address", "0.0.0.0"
-        ])
+    sys.exit(main())

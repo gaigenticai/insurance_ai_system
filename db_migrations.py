@@ -185,6 +185,55 @@ def create_tables_if_not_exist():
                     )
                 """)
                 
+                # Create AI configurations table
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS ai_configurations (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        institution_id UUID NOT NULL,
+                        configuration JSONB NOT NULL,
+                        active BOOLEAN DEFAULT TRUE,
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                    )
+                """)
+                
+                # Create AI interactions table for logging
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS ai_interactions (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        institution_id UUID NOT NULL,
+                        agent_name VARCHAR(255) NOT NULL,
+                        template_name VARCHAR(255) NOT NULL,
+                        provider_name VARCHAR(255) NOT NULL,
+                        model_name VARCHAR(255) NOT NULL,
+                        prompt_tokens INTEGER,
+                        completion_tokens INTEGER,
+                        total_tokens INTEGER,
+                        response_time_ms INTEGER,
+                        success BOOLEAN NOT NULL,
+                        error_message TEXT,
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                    )
+                """)
+                
+                # Create AI model performance table
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS ai_model_performance (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        institution_id UUID NOT NULL,
+                        model_name VARCHAR(255) NOT NULL,
+                        task_type VARCHAR(255) NOT NULL,
+                        accuracy_score DECIMAL(5,4),
+                        precision_score DECIMAL(5,4),
+                        recall_score DECIMAL(5,4),
+                        f1_score DECIMAL(5,4),
+                        evaluation_date DATE NOT NULL,
+                        sample_size INTEGER,
+                        notes TEXT,
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                    )
+                """)
+                
                 # Create indexes
                 cursor.execute("CREATE INDEX IF NOT EXISTS idx_applications_institution_id ON applications(institution_id)")
                 cursor.execute("CREATE INDEX IF NOT EXISTS idx_claims_institution_id ON claims(institution_id)")
@@ -193,6 +242,11 @@ def create_tables_if_not_exist():
                 cursor.execute("CREATE INDEX IF NOT EXISTS idx_reports_institution_id ON reports(institution_id)")
                 cursor.execute("CREATE INDEX IF NOT EXISTS idx_events_institution_id ON events(institution_id)")
                 cursor.execute("CREATE INDEX IF NOT EXISTS idx_events_event_type ON events(event_type)")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_ai_configurations_institution_id ON ai_configurations(institution_id)")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_ai_interactions_institution_id ON ai_interactions(institution_id)")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_ai_interactions_agent_name ON ai_interactions(agent_name)")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_ai_model_performance_institution_id ON ai_model_performance(institution_id)")
+                cursor.execute("CREATE INDEX IF NOT EXISTS idx_ai_model_performance_model_name ON ai_model_performance(model_name)")
                 
                 logger.info("Created tables successfully")
             except Exception as e:
