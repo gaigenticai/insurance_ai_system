@@ -479,7 +479,7 @@ class AIResponse(BaseModel):
 
 # AI Service Manager dependency
 def get_ai_service_manager() -> AIServiceManager:
-    return AIServiceManager(config_agent)
+    return AIServiceManager()
 
 @app.post("/ai/underwriting/analyze", response_model=AIResponse, tags=["AI Services"])
 async def ai_underwriting_analysis(
@@ -643,6 +643,103 @@ async def ai_health_check(
     except Exception as e:
         logger.error(f"AI health check failed: {str(e)}")
         return AIResponse(success=False, error=str(e))
+
+
+@app.get("/ai/analytics", response_model=AIResponse, tags=["AI Analytics"])
+async def get_ai_analytics(
+    hours_back: int = 24,
+    ai_manager: AIServiceManager = Depends(get_ai_service_manager)
+):
+    """Get comprehensive AI analytics and performance metrics."""
+    try:
+        analytics = ai_manager.get_ai_analytics(hours_back)
+        
+        return AIResponse(
+            success=True,
+            data=analytics
+        )
+    except Exception as e:
+        logger.error(f"Failed to get AI analytics: {e}")
+        return AIResponse(
+            success=False,
+            error=f"Failed to get AI analytics: {str(e)}"
+        )
+
+
+@app.get("/ai/analytics/export", tags=["AI Analytics"])
+async def export_ai_metrics(
+    format: str = "json",
+    ai_manager: AIServiceManager = Depends(get_ai_service_manager)
+):
+    """Export AI metrics in specified format."""
+    try:
+        metrics_data = ai_manager.export_ai_metrics(format)
+        
+        if format.lower() == "json":
+            from fastapi.responses import Response
+            return Response(
+                content=metrics_data,
+                media_type="application/json",
+                headers={"Content-Disposition": f"attachment; filename=ai_metrics_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"}
+            )
+        else:
+            return AIResponse(
+                success=False,
+                error=f"Unsupported export format: {format}"
+            )
+    except Exception as e:
+        logger.error(f"Failed to export AI metrics: {e}")
+        return AIResponse(
+            success=False,
+            error=f"Failed to export AI metrics: {str(e)}"
+        )
+
+
+@app.post("/ai/benchmark", response_model=AIResponse, tags=["AI Analytics"])
+async def benchmark_ai_providers(
+    test_prompt: Optional[str] = None,
+    ai_manager: AIServiceManager = Depends(get_ai_service_manager)
+):
+    """Benchmark all available AI providers."""
+    try:
+        if not test_prompt:
+            test_prompt = "Analyze this insurance application: 35-year-old software engineer, $85,000 annual income, excellent credit score, requesting $500,000 term life insurance."
+        
+        benchmark_results = await ai_manager.benchmark_providers(test_prompt)
+        
+        return AIResponse(
+            success=True,
+            data=benchmark_results
+        )
+    except Exception as e:
+        logger.error(f"AI provider benchmark failed: {e}")
+        return AIResponse(
+            success=False,
+            error=f"AI provider benchmark failed: {str(e)}"
+        )
+
+
+@app.get("/ai/providers/comparison", response_model=AIResponse, tags=["AI Analytics"])
+async def get_provider_comparison(
+    ai_manager: AIServiceManager = Depends(get_ai_service_manager)
+):
+    """Get performance comparison between AI providers."""
+    try:
+        analytics = ai_manager.get_ai_analytics()
+        
+        return AIResponse(
+            success=True,
+            data={
+                "provider_comparison": analytics["provider_comparison"],
+                "model_performance": analytics["model_performance"]
+            }
+        )
+    except Exception as e:
+        logger.error(f"Failed to get provider comparison: {e}")
+        return AIResponse(
+            success=False,
+            error=f"Failed to get provider comparison: {str(e)}"
+        )
 
 
 # Run the API server if executed directly

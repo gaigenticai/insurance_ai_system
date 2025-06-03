@@ -73,7 +73,9 @@ class AIConfig:
     anthropic_api_key: Optional[str] = field(default_factory=lambda: os.getenv('ANTHROPIC_API_KEY'))
     
     local_llm_base_url: str = field(default_factory=lambda: os.getenv('LOCAL_LLM_BASE_URL', 'http://localhost:11434'))
-    local_llm_model: str = field(default_factory=lambda: os.getenv('LOCAL_LLM_MODEL', 'llama2-7b'))
+    local_llm_model: str = field(default_factory=lambda: os.getenv('LOCAL_LLM_MODEL', 'llama2:7b'))
+    local_llm_provider_type: str = field(default_factory=lambda: os.getenv('LOCAL_LLM_PROVIDER_TYPE', 'ollama'))
+    local_llm_api_key: Optional[str] = field(default_factory=lambda: os.getenv('LOCAL_LLM_API_KEY'))
     
     # Feature flags
     enable_caching: bool = field(default_factory=lambda: os.getenv('AI_ENABLE_CACHING', 'true').lower() == 'true')
