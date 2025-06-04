@@ -8,6 +8,7 @@ no hardcoded values and full configurability.
 import logging
 import json
 import asyncio
+import time
 from typing import Dict, Any, Optional, List, Protocol
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
@@ -459,5 +460,5 @@ class AIServiceManager(ServiceInterface):
         return {
             "benchmark_results": benchmark_results,
             "test_prompt": test_prompt,
-            "timestamp": asyncio.get_event_loop().time()
+            "timestamp": time.time()
         }

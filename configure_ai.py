@@ -10,6 +10,7 @@ import os
 import sys
 import json
 import asyncio
+import time
 from typing import Dict, Any, Optional
 import argparse
 
@@ -117,7 +118,7 @@ def save_config_file():
         'ai_max_retries': 3,
         'ai_enable_fallback': True,
         'ai_enable_caching': True,
-        'timestamp': str(asyncio.get_event_loop().time())
+        'timestamp': str(time.time())
     }
     
     # Add provider-specific config
