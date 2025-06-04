@@ -192,7 +192,7 @@ class TaskStatusResponse(BaseResponse):
     """Response model for task status requests."""
     task_id: str = Field(..., description="Unique identifier for the task")
     task_type: TaskType = Field(..., description="Type of task")
-    status: TaskStatus = Field(..., description="Current status of the task")
+    task_status: TaskStatus = Field(..., description="Current status of the task")
     created_at: datetime = Field(..., description="Task creation timestamp")
     updated_at: datetime = Field(..., description="Task last update timestamp")
     result: Optional[Dict[str, Any]] = Field(None, description="Task result if available")
@@ -206,7 +206,7 @@ class TaskStatusResponse(BaseResponse):
                 "message": "Task status retrieved successfully",
                 "task_id": "12345678-1234-5678-1234-567812345678",
                 "task_type": "underwriting",
-                "status": "SUCCESS",
+                "task_status": "SUCCESS",
                 "created_at": "2023-06-01T10:00:00",
                 "updated_at": "2023-06-01T10:01:30",
                 "result": {
