@@ -737,7 +737,16 @@ def main():
     """Main function."""
     # Render sidebar
     render_sidebar()
-    
+
+    st.markdown(
+        '<div class="main-header">Welcome to the Insurance AI Platform</div>',
+        unsafe_allow_html=True,
+    )
+    st.write(
+        "Use the tabs below to submit underwriting applications, manage claims, "
+        "and run actuarial analyses. Start by selecting your institution in the sidebar."
+    )
+
     # Main content
     if not st.session_state.institution_id:
         st.warning("Please select an institution from the sidebar to continue.")
