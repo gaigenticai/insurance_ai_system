@@ -47,6 +47,11 @@ st.set_page_config(
 # Custom CSS
 st.markdown("""
 <style>
+    /* Lovable.dev inspired light theme */
+    body {
+        background-color: #FFFFFF;
+        color: #1E1E1E;
+    }
     .main-header {
         font-size: 2.5rem;
         color: #1E3A8A;
@@ -757,6 +762,17 @@ def render_status_panel():
                 "Failed Tasks",
                 len([t for t in st.session_state.tasks if t.get("status") in ["FAILURE", "REVOKED"]])
             )
+
+        # Sample risk trend chart using demo data
+        sample_trend = [
+            {"month": "2025-01", "risk": 0.60},
+            {"month": "2025-02", "risk": 0.65},
+            {"month": "2025-03", "risk": 0.70},
+            {"month": "2025-04", "risk": 0.72},
+        ]
+        df_trend = pd.DataFrame(sample_trend)
+        fig = px.line(df_trend, x="month", y="risk", markers=True, title="Portfolio Risk Trend")
+        st.plotly_chart(fig, use_container_width=True)
         
         # Show latest task status
         st.markdown(f"**Latest Task:** {latest_task.get('task_type', 'Unknown').capitalize()} - "
