@@ -18,6 +18,8 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 
+from utils import extract_text_from_files, get_answer
+
 # Add project root to path for AI integration
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
@@ -45,6 +47,11 @@ st.set_page_config(
 # Custom CSS
 st.markdown("""
 <style>
+    /* Lovable.dev inspired light theme */
+    body {
+        background-color: #FFFFFF;
+        color: #1E1E1E;
+    }
     .main-header {
         font-size: 2.5rem;
         color: #1E3A8A;
@@ -97,6 +104,8 @@ if "selected_task" not in st.session_state:
     st.session_state.selected_task = None
 if "report_content" not in st.session_state:
     st.session_state.report_content = None
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
 
 
 def get_institutions() -> List[str]:
@@ -152,6 +161,19 @@ def api_request(endpoint: str, method: str = "GET", data: Dict = None,
             except:
                 st.error(f"Status code: {e.response.status_code}")
         return {"status": "error", "message": str(e)}
+
+
+def render_chatbot():
+    """Simple chatbot using the knowledge base."""
+    with st.expander("💬 Chat with Assistant", expanded=False):
+        question = st.text_input("Ask a question", key="chat_input")
+        if question:
+            answer = get_answer(question)
+            st.session_state.chat_history.append(("You", question))
+            st.session_state.chat_history.append(("Assistant", answer))
+
+        for speaker, text in st.session_state.chat_history[-6:]:
+            st.markdown(f"**{speaker}:** {text}")
 
 
 def get_task_status(task_id: str) -> Dict:
@@ -334,7 +356,8 @@ def render_sidebar():
         selected_institution = st.selectbox(
             "Select Institution",
             institutions,
-            index=0 if not st.session_state.institution_id else institutions.index(st.session_state.institution_id)
+            index=0 if not st.session_state.institution_id else institutions.index(st.session_state.institution_id),
+            help="Choose which institution's configuration to use"
         )
         
         if st.button("Set Institution"):
@@ -380,6 +403,8 @@ def render_sidebar():
                         if report_response.get("status") == "success":
                             st.session_state.report_content = report_response
 
+        render_chatbot()
+
 
 def render_underwriting_form():
     """Render the underwriting form."""
@@ -389,10 +414,14 @@ def render_underwriting_form():
         col1, col2 = st.columns(2)
         
         with col1:
-            applicant_id = st.text_input("Applicant ID", value=f"UW-{uuid.uuid4().hex[:8].upper()}")
-            full_name = st.text_input("Full Name", value="Alice Example")
-            address = st.text_input("Address", value="123 Main St")
-            date_of_birth = st.date_input("Date of Birth")
+            applicant_id = st.text_input(
+                "Applicant ID",
+                value=f"UW-{uuid.uuid4().hex[:8].upper()}",
+                help="Unique identifier for the applicant"
+            )
+            full_name = st.text_input("Full Name", value="Alice Example", help="Applicant legal name")
+            address = st.text_input("Address", value="123 Main St", help="Street address")
+            date_of_birth = st.date_input("Date of Birth", help="Applicant birth date")
         
         with col2:
             income = st.number_input("Annual Income", value=80000)
@@ -403,9 +432,17 @@ def render_underwriting_form():
                 ["SafeZoneA", "SafeZoneB", "SafeZoneC", "RiskZoneA", "RiskZoneB"]
             )
         
+        uploaded_docs = st.file_uploader(
+            "Upload Application Documents",
+            type=["pdf", "png", "jpg", "jpeg"],
+            accept_multiple_files=True,
+            help="Upload scanned application forms or ID documents",
+        )
+
         document_text = st.text_area(
             "Document Text (OCR)",
-            value="Name: Alice Example\nDOB: 01/01/1990\nOther info..."
+            value="Name: Alice Example\nDOB: 01/01/1990\nOther info...",
+            help="Text extracted from uploaded documents or pasted manually",
         )
         
         # Analysis options
@@ -423,12 +460,18 @@ def render_underwriting_form():
             )
         
         submitted = st.form_submit_button("Submit Underwriting Application")
-        
+
         if submitted:
             if not st.session_state.institution_id:
                 st.error("Please select an institution first.")
                 return
-            
+
+            if uploaded_docs:
+                extracted = extract_text_from_files(uploaded_docs)
+                if extracted:
+                    document_text = document_text + "\n" + extracted if document_text else extracted
+                    st.info("Text extracted from uploaded documents has been appended.")
+
             # Prepare data
             data = {
                 "institution_id": st.session_state.institution_id,
@@ -719,6 +762,17 @@ def render_status_panel():
                 "Failed Tasks",
                 len([t for t in st.session_state.tasks if t.get("status") in ["FAILURE", "REVOKED"]])
             )
+
+        # Sample risk trend chart using demo data
+        sample_trend = [
+            {"month": "2025-01", "risk": 0.60},
+            {"month": "2025-02", "risk": 0.65},
+            {"month": "2025-03", "risk": 0.70},
+            {"month": "2025-04", "risk": 0.72},
+        ]
+        df_trend = pd.DataFrame(sample_trend)
+        fig = px.line(df_trend, x="month", y="risk", markers=True, title="Portfolio Risk Trend")
+        st.plotly_chart(fig, use_container_width=True)
         
         # Show latest task status
         st.markdown(f"**Latest Task:** {latest_task.get('task_type', 'Unknown').capitalize()} - "
@@ -737,7 +791,16 @@ def main():
     """Main function."""
     # Render sidebar
     render_sidebar()
-    
+
+    st.markdown(
+        '<div class="main-header">Welcome to the Insurance AI Platform</div>',
+        unsafe_allow_html=True,
+    )
+    st.write(
+        "Use the tabs below to submit underwriting applications, manage claims, "
+        "and run actuarial analyses. Start by selecting your institution in the sidebar."
+    )
+
     # Main content
     if not st.session_state.institution_id:
         st.warning("Please select an institution from the sidebar to continue.")

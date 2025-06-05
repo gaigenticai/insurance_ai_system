@@ -13,6 +13,7 @@ import sys
 import asyncio
 from typing import Dict, Any, Optional
 import signal
+import threading
 
 # Add project root to Python path
 project_root = os.path.dirname(os.path.abspath(__file__))
@@ -88,9 +89,12 @@ class InsuranceAIApplication:
         def signal_handler(signum, frame):
             logger.info(f"Received signal {signum}, initiating shutdown")
             self._shutdown_event.set()
-        
-        signal.signal(signal.SIGINT, signal_handler)
-        signal.signal(signal.SIGTERM, signal_handler)
+
+        if threading.current_thread() is threading.main_thread():
+            signal.signal(signal.SIGINT, signal_handler)
+            signal.signal(signal.SIGTERM, signal_handler)
+        else:
+            logger.warning("Signal handlers can only be set in the main thread; skipping")
     
     async def run_underwriting_analysis(self, application_data: Dict[str, Any]) -> Dict[str, Any]:
         """Run underwriting analysis using AI services"""

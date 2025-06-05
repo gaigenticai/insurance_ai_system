@@ -379,7 +379,7 @@ async def get_task_status_endpoint(
             "message": "Task status retrieved successfully",
             "task_id": task_id,
             "task_type": task_data.get("type"),
-            "status": task_data.get("status"),
+            "task_status": task_data.get("status"),
             "created_at": task_data.get("created_at"),
             "updated_at": task_data.get("updated_at"),
             "result": task_data.get("result"),
