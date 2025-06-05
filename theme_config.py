@@ -153,6 +153,12 @@ def apply_theme_css():
             border-radius: 8px;
             padding: 1rem;
             box-shadow: 0 4px 6px var(--shadow);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }}
+        
+        .metric-card:hover {{
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px var(--shadow);
         }}
         
         .main-header {{
@@ -163,6 +169,14 @@ def apply_theme_css():
             text-align: center;
             margin-bottom: 2rem;
             box-shadow: 0 4px 6px var(--shadow);
+            animation: gradient-shift 8s ease infinite;
+            background-size: 200% 200%;
+        }}
+        
+        @keyframes gradient-shift {{
+            0% {{ background-position: 0% 50%; }}
+            50% {{ background-position: 100% 50%; }}
+            100% {{ background-position: 0% 50%; }}
         }}
         
         /* Alert styles */
@@ -172,6 +186,11 @@ def apply_theme_css():
             padding: 1rem;
             border-radius: 8px;
             margin-bottom: 1rem;
+            transition: transform 0.3s ease;
+        }}
+        
+        .success-card:hover {{
+            transform: translateX(5px);
         }}
         
         .warning-card {{
@@ -180,6 +199,11 @@ def apply_theme_css():
             padding: 1rem;
             border-radius: 8px;
             margin-bottom: 1rem;
+            transition: transform 0.3s ease;
+        }}
+        
+        .warning-card:hover {{
+            transform: translateX(5px);
         }}
         
         .danger-card {{
@@ -188,6 +212,11 @@ def apply_theme_css():
             padding: 1rem;
             border-radius: 8px;
             margin-bottom: 1rem;
+            transition: transform 0.3s ease;
+        }}
+        
+        .danger-card:hover {{
+            transform: translateX(5px);
         }}
         
         .info-card {{
@@ -196,6 +225,11 @@ def apply_theme_css():
             padding: 1rem;
             border-radius: 8px;
             margin-bottom: 1rem;
+            transition: transform 0.3s ease;
+        }}
+        
+        .info-card:hover {{
+            transform: translateX(5px);
         }}
         
         /* Theme toggle button */
@@ -218,18 +252,99 @@ def apply_theme_css():
         }}
         
         .theme-toggle:hover {{
-            transform: translateY(-2px);
+            transform: translateY(-2px) rotate(15deg);
             box-shadow: 0 4px 8px var(--shadow);
         }}
         
         /* Animations */
         @keyframes fadeIn {{
-            from {{ opacity: 0; }}
-            to {{ opacity: 1; }}
+            from {{ opacity: 0; transform: translateY(10px); }}
+            to {{ opacity: 1; transform: translateY(0); }}
         }}
         
         .animate-fade-in {{
             animation: fadeIn 0.5s ease-in-out;
+        }}
+        
+        /* Enhanced Streamlit elements */
+        .stButton > button {{
+            background: linear-gradient(90deg, var(--primary-color) 0%, var(--accent-color) 100%);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }}
+        
+        .stButton > button:hover {{
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px var(--shadow);
+        }}
+        
+        .stTextInput > div > div > input {{
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            padding: 0.5rem;
+            background-color: var(--secondary-background-color);
+            color: var(--text-color);
+            transition: all 0.3s ease;
+        }}
+        
+        .stTextInput > div > div > input:focus {{
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary-color) 30%, transparent);
+        }}
+        
+        .stSelectbox > div > div {{
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background-color: var(--secondary-background-color);
+            color: var(--text-color);
+        }}
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {{
+            width: 8px;
+            height: 8px;
+        }}
+        
+        ::-webkit-scrollbar-track {{
+            background: var(--secondary-background-color);
+            border-radius: 10px;
+        }}
+        
+        ::-webkit-scrollbar-thumb {{
+            background: var(--primary-color);
+            border-radius: 10px;
+        }}
+        
+        ::-webkit-scrollbar-thumb:hover {{
+            background: var(--accent-color);
+        }}
+        
+        /* Glassmorphism effects */
+        .glass-effect {{
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }}
+        
+        /* 3D effects */
+        .effect-3d {{
+            transform-style: preserve-3d;
+            perspective: 1000px;
+        }}
+        
+        /* Neumorphism effects */
+        .neumorphic {{
+            border-radius: 15px;
+            background: var(--secondary-background-color);
+            box-shadow: 
+                8px 8px 16px rgba(0, 0, 0, 0.1),
+                -8px -8px 16px rgba(255, 255, 255, 0.1);
         }}
     </style>
     """
@@ -271,4 +386,5 @@ def render_theme_toggle():
     # Handle the form submission
     if st.button('Toggle Theme', key='theme_toggle_button', help="Switch between light and dark mode"):
         toggle_theme()
-        st.rerun()
+        # Use experimental_rerun for compatibility with older Streamlit versions
+        st.experimental_rerun()

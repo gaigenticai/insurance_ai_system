@@ -130,6 +130,8 @@ def create_modern_chart(data_frame: pd.DataFrame, chart_type: str,
         fig = px.pie(data_frame, values=y, names=x, title=title)
     elif chart_type == "area":
         fig = px.area(data_frame, x=x, y=y, color=color, title=title)
+    elif chart_type == "histogram":
+        fig = px.histogram(data_frame, x=x, title=title)
     else:
         raise ValueError(f"Unsupported chart type: {chart_type}")
     
@@ -237,7 +239,8 @@ def render_sidebar_navigation(items: List[Dict[str, str]], title: str = "Navigat
         
         if st.sidebar.button(f"{icon} {label}", key=f"nav_{item_id}"):
             st.session_state.current_page = item_id
-            st.rerun()
+            # Use experimental_rerun for compatibility with older Streamlit versions
+            st.experimental_rerun()
     
     st.sidebar.markdown("---")
 
@@ -343,6 +346,12 @@ def render_card(title: str, content: str, footer: str = None,
         box-shadow: 0 4px 6px var(--shadow);
         margin: 1rem 0;
         border: 1px solid var(--border-color);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }}
+    
+    .content-card:hover {{
+        transform: translateY(-5px);
+        box-shadow: 0 8px 15px var(--shadow);
     }}
     
     .card-header {{
@@ -440,6 +449,12 @@ def render_status_badge(status: str, size: str = "medium"):
         border-radius: 12px;
         font-weight: 500;
         text-align: center;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: transform 0.2s ease;
+    }}
+    
+    .status-badge:hover {{
+        transform: translateY(-2px);
     }}
     
     .badge-sm {{
@@ -665,12 +680,21 @@ def render_ai_confidence_indicator(confidence: float, size: str = "medium"):
         background-color: var(--border-color);
         border-radius: 10px;
         overflow: hidden;
+        box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
     }}
     
     .confidence-bar {{
         height: 8px;
         border-radius: 10px;
-        transition: width 0.5s ease;
+        transition: width 1s ease;
+        background-image: linear-gradient(90deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.3) 100%);
+        animation: pulse 2s infinite;
+    }}
+    
+    @keyframes pulse {{
+        0% {{ opacity: 0.8; }}
+        50% {{ opacity: 1; }}
+        100% {{ opacity: 0.8; }}
     }}
     
     .confidence-details {{
@@ -708,3 +732,427 @@ def render_ai_confidence_indicator(confidence: float, size: str = "medium"):
     """
     
     st.markdown(indicator_html, unsafe_allow_html=True)
+
+def render_floating_action_button(icon: str, tooltip: str = "", action_key: str = "fab"):
+    """Render a floating action button
+    
+    Parameters:
+    - icon: Button icon (emoji or text)
+    - tooltip: Tooltip text
+    - action_key: Unique key for the button
+    """
+    fab_html = f"""
+    <div class="fab-container" title="{tooltip}">
+        <button class="fab-button" id="fab-{action_key}">{icon}</button>
+    </div>
+    
+    <style>
+    .fab-container {{
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        z-index: 999;
+    }}
+    
+    .fab-button {{
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+        color: white;
+        border: none;
+        font-size: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 8px var(--shadow);
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }}
+    
+    .fab-button:hover {{
+        transform: translateY(-5px) rotate(5deg);
+        box-shadow: 0 8px 15px var(--shadow);
+    }}
+    </style>
+    
+    <script>
+    document.getElementById("fab-{action_key}").addEventListener("click", function() {{
+        // This will be handled by Streamlit
+    }});
+    </script>
+    """
+    
+    st.markdown(fab_html, unsafe_allow_html=True)
+    
+    # Handle the button click in Streamlit
+    if st.button(f"FAB {action_key}", key=f"fab_{action_key}", help=tooltip):
+        return True
+    
+    return False
+
+def render_animated_counter(value: int, prefix: str = "", suffix: str = "", 
+                          duration: int = 2000, label: str = None):
+    """Render an animated counter
+    
+    Parameters:
+    - value: Target value to count to
+    - prefix: Text to display before the number
+    - suffix: Text to display after the number
+    - duration: Animation duration in milliseconds
+    - label: Optional label text
+    """
+    counter_id = f"counter_{int(datetime.now().timestamp() * 1000)}"
+    
+    label_html = f"<div class='counter-label'>{label}</div>" if label else ""
+    
+    counter_html = f"""
+    <div class="counter-container">
+        {label_html}
+        <div class="counter-value">
+            <span class="counter-prefix">{prefix}</span>
+            <span id="{counter_id}" class="counter-number">0</span>
+            <span class="counter-suffix">{suffix}</span>
+        </div>
+    </div>
+    
+    <script>
+    // Animated counter
+    const counterElement = document.getElementById('{counter_id}');
+    const targetValue = {value};
+    const duration = {duration};
+    const frameDuration = 1000/60;
+    const totalFrames = Math.round(duration / frameDuration);
+    const easeOutQuad = t => t * (2 - t);
+    
+    let frame = 0;
+    const countTo = targetValue;
+    
+    const counter = setInterval(() => {{
+        frame++;
+        const progress = easeOutQuad(frame / totalFrames);
+        const currentCount = Math.round(countTo * progress);
+        
+        if (currentCount === countTo) {{
+            clearInterval(counter);
+        }}
+        
+        counterElement.textContent = currentCount.toLocaleString();
+    }}, frameDuration);
+    </script>
+    
+    <style>
+    .counter-container {{
+        margin: 1rem 0;
+        text-align: center;
+    }}
+    
+    .counter-label {{
+        font-size: 1rem;
+        margin-bottom: 0.5rem;
+        color: var(--muted-color);
+    }}
+    
+    .counter-value {{
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: var(--primary-color);
+    }}
+    
+    .counter-prefix, .counter-suffix {{
+        font-size: 1.5rem;
+        color: var(--text-color);
+    }}
+    </style>
+    """
+    
+    st.markdown(counter_html, unsafe_allow_html=True)
+
+def render_feature_card(title: str, description: str, icon: str, 
+                      color: str = None, button_text: str = None, 
+                      button_key: str = None):
+    """Render a feature highlight card
+    
+    Parameters:
+    - title: Feature title
+    - description: Feature description
+    - icon: Feature icon (emoji or text)
+    - color: Optional accent color
+    - button_text: Optional button text
+    - button_key: Optional button key for Streamlit
+    """
+    if not color:
+        color = "var(--primary-color)"
+    
+    button_html = ""
+    if button_text:
+        button_html = f"""
+        <button class="feature-button" id="feature-btn-{button_key}">{button_text}</button>
+        """
+    
+    feature_html = f"""
+    <div class="feature-card animate-fade-in">
+        <div class="feature-icon" style="background: linear-gradient(135deg, {color}, {color}40);">
+            {icon}
+        </div>
+        <h3 class="feature-title">{title}</h3>
+        <p class="feature-description">{description}</p>
+        {button_html}
+    </div>
+    
+    <style>
+    .feature-card {{
+        background-color: var(--secondary-background-color);
+        border-radius: 12px;
+        padding: 1.5rem;
+        text-align: center;
+        box-shadow: 0 4px 6px var(--shadow);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }}
+    
+    .feature-card:hover {{
+        transform: translateY(-5px);
+        box-shadow: 0 8px 15px var(--shadow);
+    }}
+    
+    .feature-icon {{
+        width: 70px;
+        height: 70px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1rem auto;
+        font-size: 2rem;
+        color: white;
+    }}
+    
+    .feature-title {{
+        margin-bottom: 0.75rem;
+        font-weight: 600;
+    }}
+    
+    .feature-description {{
+        color: var(--muted-color);
+        margin-bottom: 1.5rem;
+        flex-grow: 1;
+    }}
+    
+    .feature-button {{
+        background-color: {color};
+        color: white;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 5px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }}
+    
+    .feature-button:hover {{
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }}
+    </style>
+    """
+    
+    st.markdown(feature_html, unsafe_allow_html=True)
+    
+    # Handle the button click in Streamlit if button_text and button_key are provided
+    if button_text and button_key:
+        if st.button(button_text, key=f"feature_btn_{button_key}"):
+            return True
+    
+    return False
+
+def render_gradient_card(title: str, content: str, 
+                       gradient_start: str = None, gradient_end: str = None):
+    """Render a card with gradient background
+    
+    Parameters:
+    - title: Card title
+    - content: Card content (can include HTML)
+    - gradient_start: Starting gradient color
+    - gradient_end: Ending gradient color
+    """
+    palette = get_color_palette()
+    
+    if not gradient_start:
+        gradient_start = "var(--primary-color)"
+    
+    if not gradient_end:
+        gradient_end = "var(--accent-color)"
+    
+    gradient_card_html = f"""
+    <div class="gradient-card animate-fade-in">
+        <div class="gradient-overlay" style="background: linear-gradient(135deg, {gradient_start}, {gradient_end});"></div>
+        <div class="gradient-content">
+            <h3 class="gradient-title">{title}</h3>
+            <div class="gradient-body">{content}</div>
+        </div>
+    </div>
+    
+    <style>
+    .gradient-card {{
+        position: relative;
+        border-radius: 12px;
+        overflow: hidden;
+        color: white;
+        margin: 1rem 0;
+        box-shadow: 0 4px 6px var(--shadow);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }}
+    
+    .gradient-card:hover {{
+        transform: translateY(-5px);
+        box-shadow: 0 8px 15px var(--shadow);
+    }}
+    
+    .gradient-overlay {{
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 1;
+    }}
+    
+    .gradient-content {{
+        position: relative;
+        z-index: 2;
+        padding: 1.5rem;
+    }}
+    
+    .gradient-title {{
+        margin-bottom: 1rem;
+        font-weight: 600;
+    }}
+    
+    .gradient-body {{
+        font-size: 0.95rem;
+    }}
+    </style>
+    """
+    
+    st.markdown(gradient_card_html, unsafe_allow_html=True)
+
+def render_3d_card(title: str, content: str, icon: str = None, color: str = None):
+    """Render a 3D effect card
+    
+    Parameters:
+    - title: Card title
+    - content: Card content (can include HTML)
+    - icon: Optional icon
+    - color: Optional accent color
+    """
+    if not color:
+        color = "var(--primary-color)"
+    
+    icon_html = f'<div class="card-3d-icon">{icon}</div>' if icon else ''
+    
+    card_3d_html = f"""
+    <div class="card-3d">
+        <div class="card-3d-inner">
+            <div class="card-3d-front" style="border-color: {color};">
+                {icon_html}
+                <h3 class="card-3d-title">{title}</h3>
+                <div class="card-3d-content">{content}</div>
+            </div>
+        </div>
+    </div>
+    
+    <style>
+    .card-3d {{
+        perspective: 1000px;
+        margin: 1rem 0;
+    }}
+    
+    .card-3d-inner {{
+        position: relative;
+        width: 100%;
+        height: 100%;
+        transition: transform 0.6s;
+        transform-style: preserve-3d;
+    }}
+    
+    .card-3d:hover .card-3d-inner {{
+        transform: translateY(-10px);
+    }}
+    
+    .card-3d-front {{
+        position: relative;
+        padding: 1.5rem;
+        background-color: var(--secondary-background-color);
+        border-radius: 12px;
+        border-left: 4px solid {color};
+        box-shadow: 0 10px 20px var(--shadow);
+        backface-visibility: hidden;
+    }}
+    
+    .card-3d-icon {{
+        font-size: 2rem;
+        margin-bottom: 1rem;
+        color: {color};
+    }}
+    
+    .card-3d-title {{
+        margin-bottom: 1rem;
+        font-weight: 600;
+    }}
+    
+    .card-3d-content {{
+        color: var(--text-color);
+    }}
+    </style>
+    """
+    
+    st.markdown(card_3d_html, unsafe_allow_html=True)
+
+def render_glass_card(title: str, content: str, blur: float = 10):
+    """Render a glassmorphism style card
+    
+    Parameters:
+    - title: Card title
+    - content: Card content (can include HTML)
+    - blur: Blur amount for glass effect
+    """
+    glass_card_html = f"""
+    <div class="glass-card animate-fade-in">
+        <h3 class="glass-title">{title}</h3>
+        <div class="glass-content">{content}</div>
+    </div>
+    
+    <style>
+    .glass-card {{
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur({blur}px);
+        -webkit-backdrop-filter: blur({blur}px);
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        padding: 1.5rem;
+        margin: 1rem 0;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }}
+    
+    .glass-card:hover {{
+        transform: translateY(-5px);
+        box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15);
+    }}
+    
+    .glass-title {{
+        margin-bottom: 1rem;
+        font-weight: 600;
+    }}
+    
+    .glass-content {{
+        color: var(--text-color);
+    }}
+    </style>
+    """
+    
+    st.markdown(glass_card_html, unsafe_allow_html=True)
