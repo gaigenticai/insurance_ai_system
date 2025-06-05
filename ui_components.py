@@ -11,6 +11,7 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import pandas as pd
 from typing import Dict, Any, List, Optional, Union, Tuple
+import html
 
 # Import theme configuration
 from theme_config import get_current_theme, get_theme_config, get_color_palette
@@ -33,6 +34,10 @@ def render_metric_card(title: str, value: str, delta: str = None, icon: str = No
     """Render a modern metric card with animation"""
     palette = get_color_palette()
     
+    # Escape HTML in text content
+    title = html.escape(title)
+    value = html.escape(value)
+    
     delta_html = ""
     if delta:
         if delta.startswith("↑"):
@@ -42,7 +47,7 @@ def render_metric_card(title: str, value: str, delta: str = None, icon: str = No
         else:
             delta_color = palette["muted"]
         
-        delta_html = f'<p style="color: {delta_color};">{delta}</p>'
+        delta_html = f'<p style="color: {delta_color};">{html.escape(delta)}</p>'
     
     icon_html = f'<div class="metric-icon">{icon}</div>' if icon else ''
     
@@ -63,7 +68,7 @@ def render_alert(message: str, alert_type: str = "info", dismissible: bool = Fal
     """Render a modern alert component
     
     Parameters:
-    - message: Alert message text
+    - message: Alert message text (can contain HTML which will be rendered)
     - alert_type: One of "success", "warning", "danger", "info"
     - dismissible: Whether the alert can be dismissed
     """
@@ -85,8 +90,9 @@ def render_alert(message: str, alert_type: str = "info", dismissible: bool = Fal
     alert_html = f"""
     <div class="{alert_class} animate-fade-in">
         {dismiss_button}
-        <strong>{icon} </strong>
-        {message}
+        <div class="alert-content">
+            {message}
+        </div>
     </div>
     """
     
@@ -261,7 +267,8 @@ def render_progress_bar(value: float, max_value: float = 100,
     
     percentage = min(100, (value / max_value) * 100)
     
-    label_html = f"<div class='progress-label'>{label}</div>" if label else ""
+    # Escape HTML in label if provided
+    label_html = f"<div class='progress-label'>{html.escape(label)}</div>" if label else ""
     
     progress_html = f"""
     <div class="progress-container">
@@ -323,8 +330,12 @@ def render_card(title: str, content: str, footer: str = None,
     if not color:
         color = "var(--primary-color)"
     
+    # Escape HTML in title and footer, but not in content (which can contain HTML)
+    title = html.escape(title)
+    footer_text = html.escape(footer) if footer else None
+    
     icon_html = f'<span class="card-icon">{icon}</span>' if icon else ''
-    footer_html = f'<div class="card-footer">{footer}</div>' if footer else ''
+    footer_html = f'<div class="card-footer">{footer_text}</div>' if footer_text else ''
     
     card_html = f"""
     <div class="content-card animate-fade-in">
@@ -437,9 +448,12 @@ def render_status_badge(status: str, size: str = "medium"):
         "large": "badge-lg"
     }.get(size, "badge-md")
     
+    # Escape HTML in status text
+    status_text = html.escape(status)
+    
     badge_html = f"""
     <span class="status-badge {size_class}" style="background-color: {color};">
-        {status}
+        {status_text}
     </span>
     
     <style>
@@ -497,10 +511,13 @@ def render_notification_toast(message: str, notification_type: str = "info",
     
     icon = notification_icons.get(notification_type, "ℹ️")
     
+    # Escape HTML in message
+    message_text = html.escape(message)
+    
     toast_html = f"""
     <div id="{notification_id}" class="notification-toast {notification_type} {position}">
         <div class="notification-icon">{icon}</div>
-        <div class="notification-content">{message}</div>
+        <div class="notification-content">{message_text}</div>
         <button class="notification-close" onclick="closeNotification('{notification_id}')">×</button>
     </div>
     
@@ -741,8 +758,11 @@ def render_floating_action_button(icon: str, tooltip: str = "", action_key: str 
     - tooltip: Tooltip text
     - action_key: Unique key for the button
     """
+    # Escape HTML in tooltip
+    tooltip_text = html.escape(tooltip)
+    
     fab_html = f"""
-    <div class="fab-container" title="{tooltip}">
+    <div class="fab-container" title="{tooltip_text}">
         <button class="fab-button" id="fab-{action_key}">{icon}</button>
     </div>
     
@@ -804,15 +824,18 @@ def render_animated_counter(value: int, prefix: str = "", suffix: str = "",
     """
     counter_id = f"counter_{int(datetime.now().timestamp() * 1000)}"
     
-    label_html = f"<div class='counter-label'>{label}</div>" if label else ""
+    # Escape HTML in label, prefix, and suffix
+    prefix_text = html.escape(prefix)
+    suffix_text = html.escape(suffix)
+    label_html = f"<div class='counter-label'>{html.escape(label)}</div>" if label else ""
     
     counter_html = f"""
     <div class="counter-container">
         {label_html}
         <div class="counter-value">
-            <span class="counter-prefix">{prefix}</span>
+            <span class="counter-prefix">{prefix_text}</span>
             <span id="{counter_id}" class="counter-number">0</span>
-            <span class="counter-suffix">{suffix}</span>
+            <span class="counter-suffix">{suffix_text}</span>
         </div>
     </div>
     
@@ -884,10 +907,15 @@ def render_feature_card(title: str, description: str, icon: str,
     if not color:
         color = "var(--primary-color)"
     
+    # Escape HTML in text content
+    title_text = html.escape(title)
+    description_text = html.escape(description)
+    button_text_escaped = html.escape(button_text) if button_text else None
+    
     button_html = ""
-    if button_text:
+    if button_text_escaped:
         button_html = f"""
-        <button class="feature-button" id="feature-btn-{button_key}">{button_text}</button>
+        <button class="feature-button" id="feature-btn-{button_key}">{button_text_escaped}</button>
         """
     
     feature_html = f"""
@@ -895,8 +923,8 @@ def render_feature_card(title: str, description: str, icon: str,
         <div class="feature-icon" style="background: linear-gradient(135deg, {color}, {color}40);">
             {icon}
         </div>
-        <h3 class="feature-title">{title}</h3>
-        <p class="feature-description">{description}</p>
+        <h3 class="feature-title">{title_text}</h3>
+        <p class="feature-description">{description_text}</p>
         {button_html}
     </div>
     
@@ -987,11 +1015,14 @@ def render_gradient_card(title: str, content: str,
     if not gradient_end:
         gradient_end = "var(--accent-color)"
     
+    # Escape HTML in title but not in content (which can contain HTML)
+    title_text = html.escape(title)
+    
     gradient_card_html = f"""
     <div class="gradient-card animate-fade-in">
         <div class="gradient-overlay" style="background: linear-gradient(135deg, {gradient_start}, {gradient_end});"></div>
         <div class="gradient-content">
-            <h3 class="gradient-title">{title}</h3>
+            <h3 class="gradient-title">{title_text}</h3>
             <div class="gradient-body">{content}</div>
         </div>
     </div>
@@ -1052,6 +1083,9 @@ def render_3d_card(title: str, content: str, icon: str = None, color: str = None
     if not color:
         color = "var(--primary-color)"
     
+    # Escape HTML in title but not in content (which can contain HTML)
+    title_text = html.escape(title)
+    
     icon_html = f'<div class="card-3d-icon">{icon}</div>' if icon else ''
     
     card_3d_html = f"""
@@ -1059,7 +1093,7 @@ def render_3d_card(title: str, content: str, icon: str = None, color: str = None
         <div class="card-3d-inner">
             <div class="card-3d-front" style="border-color: {color};">
                 {icon_html}
-                <h3 class="card-3d-title">{title}</h3>
+                <h3 class="card-3d-title">{title_text}</h3>
                 <div class="card-3d-content">{content}</div>
             </div>
         </div>
@@ -1120,9 +1154,12 @@ def render_glass_card(title: str, content: str, blur: float = 10):
     - content: Card content (can include HTML)
     - blur: Blur amount for glass effect
     """
+    # Escape HTML in title but not in content (which can contain HTML)
+    title_text = html.escape(title)
+    
     glass_card_html = f"""
     <div class="glass-card animate-fade-in">
-        <h3 class="glass-title">{title}</h3>
+        <h3 class="glass-title">{title_text}</h3>
         <div class="glass-content">{content}</div>
     </div>
     

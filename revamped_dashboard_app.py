@@ -1,11 +1,12 @@
 """
-Insurance AI System - Comprehensive Dashboard UI (Revamped)
+Insurance AI System - Comprehensive Dashboard UI (Revamped & Enhanced)
 
 A complete control tower interface for insurance operations with AI integration.
 Features: Dashboard, Policy Management, Claims Processing, Analytics, Fraud Detection,
 Knowledge Base, System Configuration, Notifications, User Management, and Human Escalation.
 
-This version includes a modern UI with dark/light mode toggle and enhanced data visualizations.
+This version includes a dramatically enhanced UI with dark/light mode toggle,
+advanced data visualizations, animations, and modern design patterns for a "WOW" effect.
 """
 
 import streamlit as st
@@ -30,12 +31,17 @@ project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
 
 # Import theme configuration and UI components
-from theme_config import initialize_theme_config, apply_theme_css, render_theme_toggle, toggle_theme, get_current_theme, get_theme_config, get_color_palette
+from theme_config import (
+    initialize_theme_config, apply_theme_css, toggle_theme, 
+    get_current_theme, get_theme_config, get_color_palette
+)
 from ui_components import (
     render_header, render_metric_card, render_alert, create_modern_chart,
     render_data_table, render_sidebar_navigation, render_progress_bar,
     render_card, render_tabs, render_status_badge, render_notification_toast,
-    render_ai_confidence_indicator
+    render_ai_confidence_indicator, render_floating_action_button,
+    render_animated_counter, render_feature_card, render_gradient_card,
+    render_3d_card, render_glass_card
 )
 
 # Import with error handling
@@ -76,7 +82,7 @@ st.set_page_config(
 initialize_theme_config()
 apply_theme_css()
 
-# Data Models
+# Data Models (same as before)
 @dataclass
 class PolicyData:
     id: str
@@ -130,54 +136,40 @@ if 'user_role' not in st.session_state:
 if 'notifications' not in st.session_state:
     st.session_state.notifications = []
 
-# Mock data generators
+# Mock data generators (same as before)
 def generate_mock_policies(count=50):
-    """Generate mock policy data"""
     policies = []
     policy_types = ['Auto', 'Home', 'Life', 'Health', 'Commercial']
     statuses = ['Active', 'Pending', 'Expired', 'Cancelled']
-    
     for i in range(count):
         policy = PolicyData(
-            id=f"POL-{1000+i}",
-            customer_name=f"Customer {i+1}",
-            policy_type=random.choice(policy_types),
-            status=random.choice(statuses),
-            premium=random.uniform(500, 5000),
-            risk_score=random.uniform(0.1, 0.9),
+            id=f"POL-{1000+i}", customer_name=f"Customer {i+1}",
+            policy_type=random.choice(policy_types), status=random.choice(statuses),
+            premium=random.uniform(500, 5000), risk_score=random.uniform(0.1, 0.9),
             created_date=datetime.now() - timedelta(days=random.randint(1, 365)),
             ai_decision=random.choice(['Approved', 'Rejected', 'Review Required']),
             confidence=random.uniform(0.7, 0.99)
         )
         policies.append(policy)
-    
     return policies
 
 def generate_mock_claims(count=30):
-    """Generate mock claims data"""
     claims = []
     claim_types = ['Auto Accident', 'Property Damage', 'Medical', 'Theft', 'Fire']
     statuses = ['Open', 'Under Review', 'Approved', 'Denied', 'Closed']
-    
     for i in range(count):
         claim = ClaimData(
-            id=f"CLM-{2000+i}",
-            policy_id=f"POL-{1000+random.randint(0, 49)}",
-            customer_name=f"Customer {i+1}",
-            claim_type=random.choice(claim_types),
-            amount=random.uniform(1000, 50000),
-            status=random.choice(statuses),
+            id=f"CLM-{2000+i}", policy_id=f"POL-{1000+random.randint(0, 49)}",
+            customer_name=f"Customer {i+1}", claim_type=random.choice(claim_types),
+            amount=random.uniform(1000, 50000), status=random.choice(statuses),
             created_date=datetime.now() - timedelta(days=random.randint(1, 90)),
             ai_decision=random.choice(['Approve', 'Deny', 'Investigate', 'Escalate']),
-            fraud_score=random.uniform(0.0, 1.0),
-            confidence=random.uniform(0.6, 0.95)
+            fraud_score=random.uniform(0.0, 1.0), confidence=random.uniform(0.6, 0.95)
         )
         claims.append(claim)
-    
     return claims
 
 def generate_mock_agents():
-    """Generate mock agent activity data"""
     agents = [
         AgentActivity("Underwriting Agent", "Active", "Analyzing Policy POL-1023", datetime.now(), 45, 0.92),
         AgentActivity("Claims Agent", "Active", "Processing Claim CLM-2015", datetime.now(), 32, 0.88),
@@ -189,7 +181,6 @@ def generate_mock_agents():
     return agents
 
 def generate_mock_alerts():
-    """Generate mock alerts"""
     alerts = [
         Alert("ALT-001", "SLA Violation", "High", "Claim CLM-2008 exceeds 48-hour SLA", datetime.now() - timedelta(hours=2), False),
         Alert("ALT-002", "Fraud Detection", "Critical", "Suspicious pattern detected in claims cluster", datetime.now() - timedelta(minutes=30), False),
@@ -201,25 +192,26 @@ def generate_mock_alerts():
 
 # Navigation
 def render_navigation():
-    """Render the navigation sidebar"""
+    """Render the enhanced navigation sidebar"""
     theme = get_current_theme()
+    palette = get_color_palette()
     
-    st.sidebar.markdown('<div class="sidebar-section">', unsafe_allow_html=True)
+    st.sidebar.markdown("### 🏢 Insurance AI Control Tower")
     
-    # Theme toggle in sidebar
-    col1, col2 = st.sidebar.columns([3, 1])
-    with col1:
-        st.markdown("### 🏢 Insurance AI Control Tower")
-    with col2:
-        if st.button("🌓" if theme == "light" else "☀️", help="Toggle dark/light mode"):
-            toggle_theme()
-            st.rerun()
+    # Theme toggle button
+    if st.sidebar.button("🌓" if theme == "light" else "☀️", key="theme_toggle_sidebar", help="Toggle dark/light mode"):
+        toggle_theme()
+        st.experimental_rerun() # Use experimental_rerun
     
     st.sidebar.markdown("---")
     
-    # User info
-    st.sidebar.markdown(f"**User:** {st.session_state.user_role}")
-    st.sidebar.markdown(f"**Session:** {datetime.now().strftime('%H:%M:%S')}")
+    # User info card
+    render_glass_card(
+        title=f"👤 {st.session_state.user_role}",
+        content=f"Session Start: {datetime.now().strftime('%H:%M:%S')}",
+        blur=5
+    )
+    
     st.sidebar.markdown("---")
     
     # Navigation items
@@ -239,28 +231,20 @@ def render_navigation():
     
     render_sidebar_navigation(nav_items, "Navigation")
     
-    # Quick stats in sidebar
-    st.sidebar.markdown('<div class="sidebar-section">', unsafe_allow_html=True)
+    # Quick stats in sidebar using animated counters
     st.sidebar.markdown("### 📈 Quick Stats")
-    
-    col1, col2 = st.sidebar.columns(2)
-    with col1:
-        st.metric("Active Policies", "1,247", "↑ 23")
-        st.metric("AI Accuracy", "94.2%", "↑ 1.2%")
-    with col2:
-        st.metric("Open Claims", "89", "↓ 5")
-        st.metric("Risk Score", "32.5", "↓ 2.1")
-    
-    st.sidebar.markdown('</div>', unsafe_allow_html=True)
+    render_animated_counter(1247, label="Active Policies", duration=1500)
+    render_animated_counter(89, label="Open Claims", duration=1500)
+    render_animated_counter(94.2, suffix="%", label="AI Accuracy", duration=1500)
+    render_animated_counter(32.5, label="Avg Risk Score", duration=1500)
 
 # Page Components
 def render_dashboard():
-    """Render the main dashboard"""
+    """Render the enhanced main dashboard"""
     render_header("Insurance AI Control Tower", "Real-time overview of all insurance operations")
     
-    # Overview metrics
+    # Overview metrics using enhanced metric cards
     col1, col2, col3, col4, col5 = st.columns(5)
-    
     with col1:
         render_metric_card("Total Policies", "1,247", "↑ 23 today", "📋")
     with col2:
@@ -276,149 +260,74 @@ def render_dashboard():
     col1, col2 = st.columns([2, 1])
     
     with col1:
-        # AI Agent Activity Heatmap
+        # AI Agent Activity Heatmap (using modern chart)
         st.subheader("🤖 AI Agent Activity Heatmap")
-        
-        # Generate heatmap data
         agents = ['Underwriting', 'Claims', 'Fraud Detection', 'Actuarial', 'Compliance', 'Customer Service']
         hours = [f"{i:02d}:00" for i in range(24)]
-        
-        # Create random activity data
-        activity_data = []
-        for agent in agents:
-            for hour in hours:
-                activity_data.append({
-                    'Agent': agent,
-                    'Hour': hour,
-                    'Activity': random.randint(0, 100)
-                })
-        
+        activity_data = [{'Agent': agent, 'Hour': hour, 'Activity': random.randint(0, 100)} for agent in agents for hour in hours]
         df_activity = pd.DataFrame(activity_data)
         pivot_data = df_activity.pivot(index='Agent', columns='Hour', values='Activity')
         
-        # Create modern chart
         fig_heatmap = go.Figure(data=go.Heatmap(
-            z=pivot_data.values,
-            x=pivot_data.columns,
-            y=pivot_data.index,
-            colorscale='Blues',
-            hovertemplate='Agent: %{y}<br>Hour: %{x}<br>Activity: %{z}<extra></extra>'
+            z=pivot_data.values, x=pivot_data.columns, y=pivot_data.index,
+            colorscale='Blues', hovertemplate='Agent: %{y}<br>Hour: %{x}<br>Activity: %{z}<extra></extra>'
         ))
-        
-        # Apply theme-aware styling
         theme_config = get_theme_config()
-        palette = get_color_palette()
-        
         fig_heatmap.update_layout(
-            title="Agent Activity by Hour (Last 24h)",
-            height=400,
-            plot_bgcolor=theme_config["backgroundColor"],
-            paper_bgcolor=theme_config["backgroundColor"],
-            font_color=theme_config["textColor"],
-            margin=dict(l=10, r=10, t=50, b=10),
+            title="Agent Activity by Hour (Last 24h)", height=400,
+            plot_bgcolor=theme_config["backgroundColor"], paper_bgcolor=theme_config["backgroundColor"],
+            font_color=theme_config["textColor"], margin=dict(l=10, r=10, t=50, b=10),
         )
-        
         st.plotly_chart(fig_heatmap, use_container_width=True)
         
-        # Live Agent Feed
+        # Live Agent Feed using enhanced cards
         st.subheader("📡 Live Agent Feed")
         agents = generate_mock_agents()
-        
         for agent in agents:
             status_color = "success" if agent.status == "Active" else "warning" if agent.status == "Idle" else "danger"
-            
             content = f"""
-            <strong>{agent.agent_name}</strong> - {agent.status}<br>
-            <small>{agent.current_task} | Success Rate: {agent.success_rate:.1%}</small>
+            <strong>Status:</strong> {agent.status}<br>
+            <strong>Task:</strong> {agent.current_task}<br>
+            <strong>Success Rate:</strong> {agent.success_rate:.1%}
             """
-            
-            render_card(
+            render_3d_card(
                 title=agent.agent_name,
                 content=content,
-                footer=f"Last activity: {(datetime.now() - agent.last_activity).seconds // 60} minutes ago",
                 icon="👤",
                 color=f"var(--{status_color}-color)"
             )
     
     with col2:
-        # Alert Stream
+        # Alert Stream using enhanced alerts
         st.subheader("🚨 Alert Stream")
         alerts = generate_mock_alerts()
-        
         for alert in alerts:
             alert_type = "danger" if alert.severity == "Critical" else "warning" if alert.severity == "High" else "info"
             status_icon = "✅" if alert.resolved else "🔴"
-            
             render_alert(
-                f"{status_icon} {alert.type}: {alert.message}<br><small>{alert.timestamp.strftime('%H:%M:%S')}</small>",
-                alert_type,
-                dismissible=True
+                f"{status_icon} <strong>{alert.type}:</strong> {alert.message}<br><small>{alert.timestamp.strftime('%H:%M:%S')}</small>",
+                alert_type, dismissible=True
             )
         
-        # System Health
-        render_card(
+        # System Health using gradient card
+        health_content = """
+        <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+            <div>🟢 API Response Time: <strong>245ms</strong></div>
+            <div>🟢 Database Connections: <strong>12/50</strong></div>
+            <div>🟡 AI Model Latency: <strong>1.2s</strong></div>
+            <div>🟢 Error Rate: <strong>0.3%</strong></div>
+            <div>🟡 Memory Usage: <strong>68%</strong></div>
+        </div>
+        """
+        render_gradient_card(
             title="💚 System Health",
-            content="""
-            <div class="health-metrics">
-                <div class="health-metric">
-                    <span class="health-icon good">🟢</span>
-                    <span class="health-label">API Response Time:</span>
-                    <span class="health-value">245ms</span>
-                </div>
-                <div class="health-metric">
-                    <span class="health-icon good">🟢</span>
-                    <span class="health-label">Database Connections:</span>
-                    <span class="health-value">12/50</span>
-                </div>
-                <div class="health-metric">
-                    <span class="health-icon warning">🟡</span>
-                    <span class="health-label">AI Model Latency:</span>
-                    <span class="health-value">1.2s</span>
-                </div>
-                <div class="health-metric">
-                    <span class="health-icon good">🟢</span>
-                    <span class="health-label">Error Rate:</span>
-                    <span class="health-value">0.3%</span>
-                </div>
-                <div class="health-metric">
-                    <span class="health-icon warning">🟡</span>
-                    <span class="health-label">Memory Usage:</span>
-                    <span class="health-value">68%</span>
-                </div>
-            </div>
-            
-            <style>
-            .health-metrics {
-                display: flex;
-                flex-direction: column;
-                gap: 0.5rem;
-            }
-            
-            .health-metric {
-                display: flex;
-                align-items: center;
-            }
-            
-            .health-icon {
-                margin-right: 0.5rem;
-            }
-            
-            .health-label {
-                flex: 1;
-                font-weight: 500;
-            }
-            
-            .health-value {
-                font-family: monospace;
-            }
-            </style>
-            """,
-            footer="Last updated: just now",
-            icon="📊"
+            content=health_content,
+            gradient_start="var(--success-color)",
+            gradient_end="var(--info-color)"
         )
 
 def render_policy_management():
-    """Render policy management interface"""
+    """Render enhanced policy management interface"""
     render_header("Policy & Underwriting Management", "Manage insurance policies and underwriting decisions")
     
     # Policy filters
@@ -435,69 +344,39 @@ def render_policy_management():
     # Generate and filter policy data
     policies = generate_mock_policies()
     policy_data = [{
-        'Policy ID': p.id,
-        'Customer': p.customer_name,
-        'Type': p.policy_type,
-        'Status': p.status,
-        'Premium': f"${p.premium:,.2f}",
-        'Risk Score': f"{p.risk_score:.2f}",
-        'AI Decision': p.ai_decision,
-        'Confidence': f"{p.confidence:.1%}",
-        'Created': p.created_date.strftime('%Y-%m-%d')
+        'Policy ID': p.id, 'Customer': p.customer_name, 'Type': p.policy_type,
+        'Status': p.status, 'Premium': f"${p.premium:,.2f}", 'Risk Score': f"{p.risk_score:.2f}",
+        'AI Decision': p.ai_decision, 'Confidence': f"{p.confidence:.1%}",
+        'Created Date': p.created_date.strftime("%Y-%m-%d")
     } for p in policies]
     
-    # Policy viewer with search and modern table
-    st.subheader("🔍 Policy Search & Viewer")
-    render_data_table(policy_data, interactive=True)
+    df_policies = pd.DataFrame(policy_data)
     
-    # Policy details and analytics
-    col1, col2 = st.columns([2, 1])
+    # Apply filters (example for status)
+    if status_filter != "All":
+        df_policies = df_policies[df_policies['Status'] == status_filter]
     
+    # Render data table with enhanced features
+    render_data_table(df_policies.to_dict('records'), 
+                      columns=['Policy ID', 'Customer', 'Type', 'Status', 'Premium', 'Risk Score', 'AI Decision', 'Confidence', 'Created Date'],
+                      height=500, interactive=True)
+    
+    # Action buttons
+    st.markdown("### Actions")
+    col1, col2, col3 = st.columns(3)
     with col1:
-        st.subheader("📊 Underwriting Decision Analysis")
-        
-        # Create sample data for decision analysis
-        decision_data = pd.DataFrame({
-            'Date': pd.date_range(start='2024-01-01', periods=30, freq='D'),
-            'Approved': [random.randint(5, 20) for _ in range(30)],
-            'Rejected': [random.randint(1, 8) for _ in range(30)],
-            'Review Required': [random.randint(2, 10) for _ in range(30)]
-        })
-        
-        # Create modern chart
-        fig = create_modern_chart(
-            decision_data,
-            'area',
-            'Date',
-            ['Approved', 'Rejected', 'Review Required'],
-            'Underwriting Decisions Over Time'
-        )
-        
-        st.plotly_chart(fig, use_container_width=True)
-    
+        if st.button("➕ New Policy Application"):
+            render_notification_toast("Opening new policy form...", "info")
     with col2:
-        st.subheader("🎯 Risk Distribution")
-        
-        # Create sample data for risk distribution
-        risk_data = pd.DataFrame({
-            'Risk Level': ['Low', 'Medium', 'High'],
-            'Count': [random.randint(30, 50), random.randint(15, 30), random.randint(5, 15)]
-        })
-        
-        # Create modern chart
-        fig = create_modern_chart(
-            risk_data,
-            'pie',
-            'Risk Level',
-            'Count',
-            'Risk Level Distribution'
-        )
-        
-        st.plotly_chart(fig, use_container_width=True)
+        if st.button("🔄 Bulk Update Status"):
+            render_notification_toast("Bulk update initiated...", "info")
+    with col3:
+        if st.button("📄 Generate Report"):
+            render_notification_toast("Generating policy report...", "info")
 
 def render_claims_processing():
-    """Render claims processing interface"""
-    render_header("Claims Processing", "Process and analyze insurance claims")
+    """Render enhanced claims processing interface"""
+    render_header("Claims Processing & Management", "Handle insurance claims efficiently")
     
     # Claims filters
     col1, col2, col3, col4 = st.columns(4)
@@ -506,772 +385,445 @@ def render_claims_processing():
     with col2:
         status_filter = st.selectbox("Status", ["All", "Open", "Under Review", "Approved", "Denied", "Closed"])
     with col3:
-        fraud_risk_filter = st.selectbox("Fraud Risk", ["All", "Low (0-0.3)", "Medium (0.3-0.7)", "High (0.7-1.0)"])
+        fraud_filter = st.selectbox("Fraud Score", ["All", "Low (0-0.3)", "Medium (0.3-0.7)", "High (0.7-1.0)"])
     with col4:
         ai_decision_filter = st.selectbox("AI Decision", ["All", "Approve", "Deny", "Investigate", "Escalate"])
     
     # Generate and filter claims data
     claims = generate_mock_claims()
-    claim_data = [{
-        'Claim ID': c.id,
-        'Policy ID': c.policy_id,
-        'Customer': c.customer_name,
-        'Type': c.claim_type,
-        'Amount': f"${c.amount:,.2f}",
-        'Status': c.status,
-        'AI Decision': c.ai_decision,
-        'Fraud Score': f"{c.fraud_score:.2f}",
-        'Confidence': f"{c.confidence:.1%}",
-        'Created': c.created_date.strftime('%Y-%m-%d')
+    claims_data = [{
+        'Claim ID': c.id, 'Policy ID': c.policy_id, 'Customer': c.customer_name,
+        'Type': c.claim_type, 'Amount': f"${c.amount:,.2f}", 'Status': c.status,
+        'Fraud Score': f"{c.fraud_score:.2f}", 'AI Decision': c.ai_decision,
+        'Confidence': f"{c.confidence:.1%}", 'Created Date': c.created_date.strftime("%Y-%m-%d")
     } for c in claims]
     
-    # Claims viewer with search and modern table
-    st.subheader("🔍 Claims Search & Viewer")
-    render_data_table(claim_data, interactive=True)
+    df_claims = pd.DataFrame(claims_data)
     
-    # Claims analytics
-    col1, col2 = st.columns([1, 1])
+    # Apply filters (example for status)
+    if status_filter != "All":
+        df_claims = df_claims[df_claims['Status'] == status_filter]
     
+    # Render data table
+    render_data_table(df_claims.to_dict('records'), 
+                      columns=['Claim ID', 'Policy ID', 'Customer', 'Type', 'Amount', 'Status', 'Fraud Score', 'AI Decision', 'Confidence', 'Created Date'],
+                      height=500, interactive=True)
+    
+    # Action buttons
+    st.markdown("### Actions")
+    col1, col2, col3 = st.columns(3)
     with col1:
-        st.subheader("📊 Claims by Type")
-        
-        # Create sample data for claims by type
-        claims_by_type = pd.DataFrame({
-            'Type': ['Auto Accident', 'Property Damage', 'Medical', 'Theft', 'Fire'],
-            'Count': [random.randint(10, 30) for _ in range(5)]
-        })
-        
-        # Create modern chart
-        fig = create_modern_chart(
-            claims_by_type,
-            'bar',
-            'Type',
-            'Count',
-            'Claims by Type'
-        )
-        
-        st.plotly_chart(fig, use_container_width=True)
-    
+        if st.button("➕ New Claim Submission"):
+            render_notification_toast("Opening new claim form...", "info")
     with col2:
-        st.subheader("⏱️ Processing Time")
-        
-        # Create sample data for processing time
-        processing_time = pd.DataFrame({
-            'Type': ['Auto Accident', 'Property Damage', 'Medical', 'Theft', 'Fire'],
-            'Days': [random.uniform(1, 10) for _ in range(5)]
-        })
-        
-        # Create modern chart
-        fig = create_modern_chart(
-            processing_time,
-            'bar',
-            'Type',
-            'Days',
-            'Average Processing Time (Days)'
-        )
-        
-        st.plotly_chart(fig, use_container_width=True)
+        if st.button("🔍 Initiate Investigation"):
+            render_notification_toast("Investigation process started...", "warning")
+    with col3:
+        if st.button("✅ Approve Selected"):
+            render_notification_toast("Selected claims approved.", "success")
 
 def render_analytics():
-    """Render analytics interface"""
-    render_header("Analytics & Risk", "Advanced analytics and risk assessment")
+    """Render enhanced analytics and risk dashboard"""
+    render_header("Analytics & Risk Insights", "Visualize trends and assess risks")
     
-    # Create tabs for different analytics views
-    tabs = [
-        {
-            "label": "Business Overview",
-            "content": render_business_overview
-        },
-        {
-            "label": "Risk Analysis",
-            "content": render_risk_analysis
-        },
-        {
-            "label": "Performance Metrics",
-            "content": render_performance_metrics
-        },
-        {
-            "label": "Predictive Models",
-            "content": render_predictive_models
-        }
+    # Tabs for different analytics views
+    tabs_data = [
+        {"label": "📈 Performance Metrics", "content": render_performance_analytics},
+        {"label": "📉 Risk Analysis", "content": render_risk_analytics},
+        {"label": "🗺️ Geographic Insights", "content": render_geo_analytics}
     ]
-    
-    render_tabs(tabs)
+    render_tabs(tabs_data)
 
-def render_business_overview():
-    """Render business overview analytics"""
-    # Key performance indicators
-    col1, col2, col3, col4 = st.columns(4)
+def render_performance_analytics():
+    """Render performance metrics section"""
+    st.subheader("Key Performance Indicators")
     
+    col1, col2, col3 = st.columns(3)
     with col1:
-        render_metric_card("Revenue", "$1.24M", "↑ 12% YoY", "💰")
+        # Example Line Chart
+        df_perf = pd.DataFrame({
+            'Month': pd.to_datetime(['2024-01', '2024-02', '2024-03', '2024-04', '2024-05']),
+            'Policies Issued': [180, 210, 195, 230, 250],
+            'Claims Processed': [60, 75, 70, 85, 90]
+        })
+        fig_perf = create_modern_chart(df_perf, 'line', x='Month', y=['Policies Issued', 'Claims Processed'], 
+                                     title="Monthly Performance Trends")
+        st.plotly_chart(fig_perf, use_container_width=True)
+    
     with col2:
-        render_metric_card("Claims Ratio", "68.3%", "↓ 2.1% YoY", "📉")
+        # Example Bar Chart
+        df_types = pd.DataFrame({
+            'Policy Type': ['Auto', 'Home', 'Life', 'Health'],
+            'Count': [550, 320, 180, 197]
+        })
+        fig_types = create_modern_chart(df_types, 'bar', x='Policy Type', y='Count', 
+                                      title="Policies by Type")
+        st.plotly_chart(fig_types, use_container_width=True)
+    
     with col3:
-        render_metric_card("Customer Growth", "+156", "↑ 8% YoY", "👥")
-    with col4:
-        render_metric_card("Avg Premium", "$842", "↑ 5% YoY", "💵")
+        # Example Pie Chart
+        df_status = pd.DataFrame({
+            'Status': ['Active', 'Pending', 'Expired', 'Cancelled'],
+            'Count': [1247, 85, 45, 23]
+        })
+        fig_status = create_modern_chart(df_status, 'pie', x='Status', y='Count', 
+                                       title="Policy Status Distribution")
+        st.plotly_chart(fig_status, use_container_width=True)
+
+def render_risk_analytics():
+    """Render risk analysis section"""
+    st.subheader("Risk Assessment Overview")
     
-    # Business trends
-    st.subheader("📈 Business Performance Trends")
-    
-    # Create sample data for business trends
-    dates = pd.date_range(start='2024-01-01', periods=12, freq='M')
-    business_data = pd.DataFrame({
-        'Date': dates,
-        'Revenue': [random.uniform(900000, 1300000) for _ in range(12)],
-        'Expenses': [random.uniform(700000, 900000) for _ in range(12)],
-        'Profit': [random.uniform(100000, 400000) for _ in range(12)]
-    })
-    
-    # Create modern chart
-    fig = create_modern_chart(
-        business_data,
-        'line',
-        'Date',
-        ['Revenue', 'Expenses', 'Profit'],
-        'Financial Performance (Last 12 Months)'
-    )
-    
-    st.plotly_chart(fig, use_container_width=True)
-    
-    # Policy distribution
     col1, col2 = st.columns(2)
-    
     with col1:
-        st.subheader("📊 Policy Distribution by Type")
-        
-        # Create sample data for policy distribution
-        policy_dist = pd.DataFrame({
-            'Type': ['Auto', 'Home', 'Life', 'Health', 'Commercial'],
-            'Count': [random.randint(200, 500) for _ in range(5)]
-        })
-        
-        # Create modern chart
-        fig = create_modern_chart(
-            policy_dist,
-            'pie',
-            'Type',
-            'Count',
-            'Policy Distribution'
-        )
-        
-        st.plotly_chart(fig, use_container_width=True)
+        # Risk Score Distribution
+        policies = generate_mock_policies()
+        df_risk = pd.DataFrame([p.risk_score for p in policies], columns=['Risk Score'])
+        fig_risk_dist = create_modern_chart(df_risk, 'histogram', x='Risk Score', 
+                                          title="Policy Risk Score Distribution")
+        st.plotly_chart(fig_risk_dist, use_container_width=True)
     
     with col2:
-        st.subheader("🌍 Geographic Distribution")
-        
-        # Create sample data for geographic distribution
-        geo_dist = pd.DataFrame({
-            'Region': ['North', 'South', 'East', 'West', 'Central'],
-            'Policies': [random.randint(100, 400) for _ in range(5)],
-            'Claims': [random.randint(20, 100) for _ in range(5)]
-        })
-        
-        # Create modern chart
-        fig = create_modern_chart(
-            geo_dist,
-            'bar',
-            'Region',
-            ['Policies', 'Claims'],
-            'Geographic Distribution'
+        # High Risk Policies
+        high_risk_policies = [p for p in policies if p.risk_score >= 0.7]
+        render_card(
+            title="🚨 High Risk Policies",
+            content=f"Number of policies with risk score > 0.7: **{len(high_risk_policies)}**",
+            footer="Review recommended",
+            icon="⚠️",
+            color="var(--danger-color)"
         )
-        
-        st.plotly_chart(fig, use_container_width=True)
+        if high_risk_policies:
+            st.dataframe(pd.DataFrame([{'ID': p.id, 'Score': f"{p.risk_score:.2f}"} for p in high_risk_policies[:5]]), 
+                         use_container_width=True)
 
-def render_risk_analysis():
-    """Render risk analysis analytics"""
-    st.subheader("🎯 Risk Score Distribution")
+def render_geo_analytics():
+    """Render geographic insights section"""
+    st.subheader("Geographic Distribution")
     
-    # Create sample data for risk distribution
-    risk_scores = [random.uniform(0, 1) for _ in range(1000)]
-    risk_df = pd.DataFrame({
-        'Risk Score': risk_scores
-    })
+    # Mock geo data
+    data = {'State': ['CA', 'NY', 'TX', 'FL', 'IL', 'PA', 'OH', 'GA', 'NC', 'MI'],
+            'Policies': [150, 120, 100, 90, 80, 70, 60, 55, 50, 45],
+            'Claims': [30, 25, 20, 18, 15, 12, 10, 9, 8, 7],
+            'AvgRisk': [0.65, 0.55, 0.60, 0.70, 0.50, 0.45, 0.52, 0.68, 0.58, 0.62]}
+    df_geo = pd.DataFrame(data)
     
-    # Create modern chart
-    fig = create_modern_chart(
-        risk_df,
-        'histogram',
-        'Risk Score',
-        'count',
-        'Risk Score Distribution'
-    )
-    
-    st.plotly_chart(fig, use_container_width=True)
-    
-    # Risk factors
-    st.subheader("🔍 Key Risk Factors")
-    
-    # Create sample data for risk factors
-    risk_factors = pd.DataFrame({
-        'Factor': ['Age', 'Location', 'Claim History', 'Credit Score', 'Coverage Level', 'Vehicle Type', 'Property Value'],
-        'Importance': [random.uniform(0.5, 1.0) for _ in range(7)]
-    })
-    
-    risk_factors = risk_factors.sort_values('Importance', ascending=False)
-    
-    # Create modern chart
-    fig = create_modern_chart(
-        risk_factors,
-        'bar',
-        'Factor',
-        'Importance',
-        'Risk Factor Importance'
-    )
-    
-    st.plotly_chart(fig, use_container_width=True)
-    
-    # Risk trends
-    st.subheader("📈 Risk Trends Over Time")
-    
-    # Create sample data for risk trends
-    dates = pd.date_range(start='2024-01-01', periods=30, freq='D')
-    risk_trends = pd.DataFrame({
-        'Date': dates,
-        'Average Risk Score': [random.uniform(0.3, 0.6) for _ in range(30)],
-        'High Risk Policies': [random.randint(10, 30) for _ in range(30)]
-    })
-    
-    # Create modern chart
-    fig = create_modern_chart(
-        risk_trends,
-        'line',
-        'Date',
-        ['Average Risk Score', 'High Risk Policies'],
-        'Risk Metrics Over Time'
-    )
-    
-    st.plotly_chart(fig, use_container_width=True)
-
-def render_performance_metrics():
-    """Render performance metrics analytics"""
-    # Performance KPIs
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        render_metric_card("Processing Time", "1.8 days", "↓ 0.3 days", "⏱️")
-    with col2:
-        render_metric_card("Approval Rate", "78.2%", "↑ 2.4%", "✅")
-    with col3:
-        render_metric_card("AI Accuracy", "94.2%", "↑ 1.2%", "🤖")
-    with col4:
-        render_metric_card("Customer Satisfaction", "4.7/5", "↑ 0.2", "😊")
-    
-    # Performance by department
-    st.subheader("📊 Performance by Department")
-    
-    # Create sample data for department performance
-    departments = ['Underwriting', 'Claims', 'Customer Service', 'Fraud Detection', 'Actuarial']
-    dept_perf = pd.DataFrame({
-        'Department': departments,
-        'Efficiency': [random.uniform(0.7, 0.95) for _ in range(len(departments))],
-        'Accuracy': [random.uniform(0.8, 0.98) for _ in range(len(departments))],
-        'Volume': [random.randint(50, 500) for _ in range(len(departments))]
-    })
-    
-    # Create modern chart
-    fig = create_modern_chart(
-        dept_perf,
-        'scatter',
-        'Efficiency',
-        'Accuracy',
-        'Department Performance'
-    )
-    
-    st.plotly_chart(fig, use_container_width=True)
-    
-    # AI vs Human performance
-    st.subheader("🤖 AI vs Human Performance")
-    
-    # Create sample data for AI vs Human
-    metrics = ['Speed', 'Accuracy', 'Consistency', 'Cost Efficiency', 'Customer Satisfaction']
-    ai_human = pd.DataFrame({
-        'Metric': metrics,
-        'AI': [random.uniform(0.7, 0.95) for _ in range(len(metrics))],
-        'Human': [random.uniform(0.6, 0.9) for _ in range(len(metrics))]
-    })
-    
-    # Create modern chart
-    fig = create_modern_chart(
-        ai_human,
-        'bar',
-        'Metric',
-        ['AI', 'Human'],
-        'AI vs Human Performance'
-    )
-    
-    st.plotly_chart(fig, use_container_width=True)
-
-def render_predictive_models():
-    """Render predictive models analytics"""
-    st.subheader("🔮 Predictive Models Performance")
-    
-    # Create sample data for model performance
-    models = ['Risk Assessment', 'Fraud Detection', 'Premium Pricing', 'Customer Churn', 'Claims Estimation']
-    model_perf = pd.DataFrame({
-        'Model': models,
-        'Accuracy': [random.uniform(0.8, 0.95) for _ in range(len(models))],
-        'Precision': [random.uniform(0.75, 0.9) for _ in range(len(models))],
-        'Recall': [random.uniform(0.7, 0.9) for _ in range(len(models))],
-        'F1 Score': [random.uniform(0.75, 0.92) for _ in range(len(models))]
-    })
-    
-    # Display as modern table
-    render_data_table(model_perf.to_dict('records'))
-    
-    # Forecast
-    st.subheader("📈 Business Forecast")
-    
-    # Create sample data for forecast
-    future_dates = pd.date_range(start='2024-07-01', periods=12, freq='M')
-    forecast_data = pd.DataFrame({
-        'Date': future_dates,
-        'Predicted Revenue': [random.uniform(1000000, 1500000) for _ in range(12)],
-        'Predicted Claims': [random.uniform(600000, 900000) for _ in range(12)],
-        'Confidence Interval': [random.uniform(0.05, 0.15) for _ in range(12)]
-    })
-    
-    # Create modern chart with confidence intervals
-    fig = go.Figure()
-    
-    # Add predicted revenue line
-    fig.add_trace(go.Scatter(
-        x=forecast_data['Date'],
-        y=forecast_data['Predicted Revenue'],
-        mode='lines+markers',
-        name='Predicted Revenue',
-        line=dict(color='rgba(59, 130, 246, 0.8)', width=3)
+    # Example Choropleth Map
+    fig_map = go.Figure(data=go.Choropleth(
+        locations=df_geo['State'],
+        z=df_geo['Policies'].astype(float),
+        locationmode='USA-states',
+        colorscale='Blues',
+        colorbar_title="Policies",
+        marker_line_color='darkgray',
+        marker_line_width=0.5,
     ))
     
-    # Add upper confidence interval
-    fig.add_trace(go.Scatter(
-        x=forecast_data['Date'],
-        y=forecast_data['Predicted Revenue'] * (1 + forecast_data['Confidence Interval']),
-        mode='lines',
-        line=dict(width=0),
-        showlegend=False,
-        hoverinfo='skip'
-    ))
-    
-    # Add lower confidence interval
-    fig.add_trace(go.Scatter(
-        x=forecast_data['Date'],
-        y=forecast_data['Predicted Revenue'] * (1 - forecast_data['Confidence Interval']),
-        mode='lines',
-        line=dict(width=0),
-        fill='tonexty',
-        fillcolor='rgba(59, 130, 246, 0.2)',
-        name='Confidence Interval',
-        hoverinfo='skip'
-    ))
-    
-    # Apply theme-aware styling
     theme_config = get_theme_config()
-    
-    fig.update_layout(
-        title='12-Month Revenue Forecast with Confidence Intervals',
-        height=400,
+    fig_map.update_layout(
+        title_text='Policy Distribution by State',
+        geo_scope='usa',
         plot_bgcolor=theme_config["backgroundColor"],
         paper_bgcolor=theme_config["backgroundColor"],
         font_color=theme_config["textColor"],
-        xaxis_title='Date',
-        yaxis_title='Revenue ($)',
-        hovermode='x unified',
-        margin=dict(l=10, r=10, t=50, b=10),
+        margin={"r":0,"t":30,"l":0,"b":0}
     )
-    
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig_map, use_container_width=True)
 
 def render_fraud_detection():
-    """Render fraud detection interface"""
-    render_header("Fraud Detection", "AI-powered fraud detection and analysis")
+    """Render enhanced fraud detection interface"""
+    render_header("AI-Powered Fraud Detection", "Identify and investigate suspicious activities")
     
-    # Fraud metrics
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        render_metric_card("Fraud Cases", "28", "↑ 3 this month", "🚨")
-    with col2:
-        render_metric_card("Detection Rate", "96.3%", "↑ 1.2%", "🔍")
-    with col3:
-        render_metric_card("False Positives", "2.1%", "↓ 0.4%", "✓")
-    with col4:
-        render_metric_card("Savings", "$342K", "↑ $28K", "💰")
-    
-    # Fraud risk map
-    st.subheader("🗺️ Fraud Risk Heatmap")
-    
-    # Create sample data for fraud heatmap
-    fraud_data = []
-    for i in range(100):
-        fraud_data.append({
-            'Latitude': random.uniform(25, 48),
-            'Longitude': random.uniform(-125, -70),
-            'Risk Score': random.uniform(0, 1)
-        })
-    
-    fraud_df = pd.DataFrame(fraud_data)
-    
-    # Create modern chart
-    fig = px.density_mapbox(
-        fraud_df,
-        lat='Latitude',
-        lon='Longitude',
-        z='Risk Score',
-        radius=20,
-        center=dict(lat=37, lon=-95),
-        zoom=3,
-        mapbox_style="carto-darkmatter" if get_current_theme() == "dark" else "carto-positron"
-    )
-    
-    # Apply theme-aware styling
-    theme_config = get_theme_config()
-    
-    fig.update_layout(
-        height=500,
-        margin=dict(l=0, r=0, t=0, b=0),
-        paper_bgcolor=theme_config["backgroundColor"]
-    )
-    
-    st.plotly_chart(fig, use_container_width=True)
-    
-    # Fraud detection details
-    col1, col2 = st.columns([2, 1])
+    col1, col2 = st.columns([1, 2])
     
     with col1:
-        st.subheader("🔍 Recent Fraud Alerts")
+        # Fraud Score Overview
+        claims = generate_mock_claims()
+        fraud_scores = [c.fraud_score for c in claims]
+        avg_fraud_score = sum(fraud_scores) / len(fraud_scores) if claims else 0
+        high_fraud_claims = len([c for c in claims if c.fraud_score >= 0.7])
         
-        # Sample fraud alerts
-        fraud_alerts = [
-            {
-                "id": "FRD-001",
-                "policy": "POL-1042",
-                "type": "Multiple Claims",
-                "risk_score": 0.87,
-                "status": "Under Investigation",
-                "detected": datetime.now() - timedelta(hours=3)
-            },
-            {
-                "id": "FRD-002",
-                "policy": "POL-1126",
-                "type": "Identity Mismatch",
-                "risk_score": 0.92,
-                "status": "Confirmed Fraud",
-                "detected": datetime.now() - timedelta(hours=12)
-            },
-            {
-                "id": "FRD-003",
-                "policy": "POL-1078",
-                "type": "Suspicious Documentation",
-                "risk_score": 0.76,
-                "status": "Under Investigation",
-                "detected": datetime.now() - timedelta(days=1)
-            },
-            {
-                "id": "FRD-004",
-                "policy": "POL-1215",
-                "type": "Unusual Claim Pattern",
-                "risk_score": 0.81,
-                "status": "Escalated",
-                "detected": datetime.now() - timedelta(days=2)
-            }
-        ]
-        
-        for alert in fraud_alerts:
-            content = f"""
-            <div class="fraud-alert-details">
-                <div><strong>Policy:</strong> {alert['policy']}</div>
-                <div><strong>Type:</strong> {alert['type']}</div>
-                <div><strong>Status:</strong> {alert['status']}</div>
-                <div><strong>Detected:</strong> {alert['detected'].strftime('%Y-%m-%d %H:%M')}</div>
-            </div>
-            """
-            
-            render_card(
-                title=f"Alert {alert['id']}",
-                content=content,
-                footer=f"Risk Score: {alert['risk_score']:.2f}",
-                icon="🚨",
-                color="var(--danger-color)"
-            )
-    
-    with col2:
-        st.subheader("📊 Fraud by Type")
-        
-        # Create sample data for fraud by type
-        fraud_types = ['Identity Theft', 'Multiple Claims', 'Exaggerated Damages', 'Staged Accidents', 'Billing Fraud']
-        fraud_by_type = pd.DataFrame({
-            'Type': fraud_types,
-            'Count': [random.randint(3, 15) for _ in range(len(fraud_types))]
-        })
-        
-        # Create modern chart
-        fig = create_modern_chart(
-            fraud_by_type,
-            'bar',
-            'Type',
-            'Count',
-            'Fraud Cases by Type'
+        render_gradient_card(
+            title="Fraud Score Summary",
+            content=f"""
+            Average Fraud Score: <strong>{avg_fraud_score:.2f}</strong><br>
+            High Risk Claims (>0.7): <strong>{high_fraud_claims}</strong>
+            """,
+            gradient_start="var(--warning-color)",
+            gradient_end="var(--danger-color)"
         )
         
-        st.plotly_chart(fig, use_container_width=True)
-        
-        # AI confidence in fraud detection
-        st.subheader("🤖 AI Confidence Levels")
-        
-        for i, score in enumerate([0.96, 0.88, 0.76, 0.92]):
-            render_ai_confidence_indicator(score)
+        # AI Confidence
+        render_ai_confidence_indicator(random.uniform(0.85, 0.98), size="large")
+    
+    with col2:
+        # Fraud Score Distribution Chart
+        df_fraud = pd.DataFrame(fraud_scores, columns=['Fraud Score'])
+        fig_fraud_dist = create_modern_chart(df_fraud, 'histogram', x='Fraud Score', 
+                                           title="Claim Fraud Score Distribution")
+        st.plotly_chart(fig_fraud_dist, use_container_width=True)
+    
+    # High Fraud Score Claims Table
+    st.subheader("Claims Flagged for High Fraud Risk (Score > 0.7)")
+    high_fraud_claims_data = [{
+        'Claim ID': c.id, 'Customer': c.customer_name, 'Amount': f"${c.amount:,.2f}",
+        'Fraud Score': f"{c.fraud_score:.2f}", 'AI Decision': c.ai_decision
+    } for c in claims if c.fraud_score >= 0.7]
+    
+    render_data_table(high_fraud_claims_data, height=300, interactive=True)
+
+def render_knowledge_base():
+    """Render knowledge base interface"""
+    render_header("Knowledge Base & Documentation", "Access guidelines, policies, and AI insights")
+    
+    search_query = st.text_input("🔍 Search Knowledge Base", placeholder="Enter keywords like 'underwriting guidelines' or 'fraud patterns'...")
+    
+    if search_query:
+        st.write(f"Searching for: **{search_query}**")
+        # Mock search results
+        time.sleep(0.5) # Simulate search time
+        results = [
+            {"title": f"Guideline: {search_query} Best Practices", "type": "Guideline", "relevance": 0.92},
+            {"title": f"Policy Document: Section on {search_query}", "type": "Policy", "relevance": 0.85},
+            {"title": f"AI Insight: Common patterns related to {search_query}", "type": "AI Insight", "relevance": 0.78}
+        ]
+        for result in results:
+            render_card(
+                title=result["title"],
+                content=f"Type: {result['type']} | Relevance: {result['relevance']:.1%}",
+                footer="Click to view details",
+                icon="📄"
+            )
+    else:
+        # Feature cards for common sections
+        st.subheader("Browse Categories")
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            render_feature_card("Underwriting Guidelines", "Access standard procedures for policy underwriting.", "📝", color="var(--info-color)")
+        with col2:
+            render_feature_card("Claims Procedures", "Step-by-step guide for processing various claim types.", "⚖️", color="var(--success-color)")
+        with col3:
+            render_feature_card("Fraud Indicators", "Common red flags and patterns identified by AI.", "🕵️", color="var(--warning-color)")
 
 def render_system_config():
     """Render system configuration interface"""
-    render_header("System Configuration", "Configure system settings and preferences")
+    render_header("System Configuration & Settings", "Manage AI models, integrations, and system parameters")
     
-    # Create tabs for different configuration sections
-    tabs = [
-        {
-            "label": "General Settings",
-            "content": render_general_settings
-        },
-        {
-            "label": "AI Configuration",
-            "content": render_ai_configuration
-        },
-        {
-            "label": "User Interface",
-            "content": render_ui_configuration
-        },
-        {
-            "label": "Integrations",
-            "content": render_integrations
-        }
+    settings = get_settings()
+    
+    tabs_data = [
+        {"label": "🤖 AI Model Settings", "content": lambda: render_ai_config(settings)},
+        {"label": "🔌 Integrations", "content": render_integrations_config},
+        {"label": "🔧 General Settings", "content": render_general_config}
+    ]
+    render_tabs(tabs_data)
+
+def render_ai_config(settings):
+    """Render AI model configuration section"""
+    st.subheader("AI Provider & Model Selection")
+    ai_provider = st.selectbox("AI Provider", ["openai", "anthropic", "google"], index=["openai", "anthropic", "google"].index(settings.ai_provider))
+    
+    if ai_provider == "openai":
+        api_key = st.text_input("OpenAI API Key", type="password", value=settings.openai_api_key or "")
+        model = st.selectbox("Model", ["gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo"])
+    # Add similar sections for other providers
+    
+    st.subheader("Confidence Thresholds")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        underwriting_threshold = st.slider("Underwriting Auto-Approval", 0.0, 1.0, 0.85, 0.01)
+    with col2:
+        claims_threshold = st.slider("Claims Auto-Approval", 0.0, 1.0, 0.80, 0.01)
+    with col3:
+        fraud_threshold = st.slider("Fraud Investigation Trigger", 0.0, 1.0, 0.70, 0.01)
+        
+    if st.button("💾 Save AI Settings"):
+        # Logic to save settings (update config files or database)
+        render_notification_toast("AI settings saved successfully!", "success")
+
+def render_integrations_config():
+    """Render integrations configuration section"""
+    st.subheader("Third-Party Integrations")
+    
+    render_card("CRM Integration (Salesforce)", "Status: <span style='color: var(--success-color);'>Connected</span>", icon="🔗", color="var(--info-color)")
+    render_card("Payment Gateway (Stripe)", "Status: <span style='color: var(--success-color);'>Connected</span>", icon="💳", color="var(--success-color)")
+    render_card("Communication Platform (Twilio)", "Status: <span style='color: var(--danger-color);'>Disconnected</span>", icon="📞", color="var(--warning-color)")
+    
+    if st.button("⚙️ Manage Integrations"):
+        render_notification_toast("Opening integration management panel...", "info")
+
+def render_general_config():
+    """Render general system settings section"""
+    st.subheader("General Application Settings")
+    
+    app_name = st.text_input("Application Name", "Insurance AI Control Tower")
+    default_timezone = st.selectbox("Default Timezone", ["UTC", "America/New_York", "Europe/London", "Asia/Tokyo"])
+    session_timeout = st.number_input("Session Timeout (minutes)", 1, 120, 30)
+    
+    if st.button("💾 Save General Settings"):
+        # Logic to save general settings
+        render_notification_toast("General settings saved successfully!", "success")
+
+def render_notifications():
+    """Render notifications center"""
+    render_header("Notifications & Alerts Center", "View and manage system notifications")
+    
+    st.subheader("Recent Notifications")
+    notifications = st.session_state.notifications + generate_mock_alerts() # Combine session and mock
+    
+    filter_type = st.selectbox("Filter by Type", ["All", "SLA Violation", "Fraud Detection", "System", "Compliance", "Performance"])
+    
+    filtered_notifications = notifications
+    if filter_type != "All":
+        filtered_notifications = [n for n in notifications if n.type == filter_type]
+        
+    if not filtered_notifications:
+        st.info("No notifications match the current filter.")
+    else:
+        for notification in filtered_notifications:
+            alert_type = "danger" if notification.severity == "Critical" else "warning" if notification.severity == "High" else "info"
+            status_icon = "✅" if notification.resolved else "🔴"
+            render_alert(
+                f"{status_icon} [{notification.severity}] {notification.type}: {notification.message}<br><small>{notification.timestamp.strftime('%Y-%m-%d %H:%M:%S')}</small>",
+                alert_type,
+                dismissible=True
+            )
+
+def render_user_management():
+    """Render user management interface"""
+    render_header("User Management", "Manage users, roles, and permissions")
+    
+    # Mock user data
+    users = [
+        {"Username": "admin", "Role": "Admin", "Last Login": datetime.now() - timedelta(hours=1), "Status": "Active"},
+        {"Username": "j.doe", "Role": "Underwriter", "Last Login": datetime.now() - timedelta(days=1), "Status": "Active"},
+        {"Username": "s.smith", "Role": "Claims Adjuster", "Last Login": datetime.now() - timedelta(hours=3), "Status": "Active"},
+        {"Username": "r.jones", "Role": "Analyst", "Last Login": datetime.now() - timedelta(days=2), "Status": "Inactive"}
     ]
     
-    render_tabs(tabs)
+    users_data = [{
+        'Username': u['Username'], 'Role': u['Role'], 
+        'Last Login': u['Last Login'].strftime('%Y-%m-%d %H:%M'),
+        'Status': u['Status']
+    } for u in users]
+    
+    render_data_table(users_data, height=300, interactive=True)
+    
+    st.subheader("Actions")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        if st.button("➕ Add New User"):
+            render_notification_toast("Opening add user form...", "info")
+    with col2:
+        if st.button("✏️ Edit Selected User"):
+            render_notification_toast("Opening edit user form...", "info")
+    with col3:
+        if st.button("🔑 Manage Roles & Permissions"):
+            render_notification_toast("Opening role management...", "info")
 
-def render_general_settings():
-    """Render general settings configuration"""
-    st.subheader("⚙️ System Settings")
+def render_human_escalation():
+    """Render human escalation queue"""
+    render_header("Human Escalation Queue", "Review cases requiring manual intervention")
     
+    # Mock escalation data
+    escalations = [
+        {"Case ID": "ESC-001", "Type": "Complex Claim", "Reason": "High value, multiple parties", "Assigned To": "Senior Adjuster", "Status": "Pending Review"},
+        {"Case ID": "ESC-002", "Type": "Policy Exception", "Reason": "Non-standard coverage request", "Assigned To": "Underwriting Manager", "Status": "Pending Review"},
+        {"Case ID": "ESC-003", "Type": "Fraud Investigation", "Reason": "AI flagged high probability", "Assigned To": "Fraud Specialist", "Status": "In Progress"}
+    ]
+    
+    escalations_data = [{
+        'Case ID': e['Case ID'], 'Type': e['Type'], 'Reason': e['Reason'],
+        'Assigned To': e['Assigned To'], 'Status': e['Status']
+    } for e in escalations]
+    
+    render_data_table(escalations_data, height=400, interactive=True)
+    
+    st.subheader("Actions")
     col1, col2 = st.columns(2)
-    
     with col1:
-        st.text_input("System Name", value="Insurance AI Control Tower")
-        st.text_input("Organization", value="Acme Insurance Inc.")
-        st.selectbox("Default Language", ["English", "Spanish", "French", "German", "Japanese"])
-        st.selectbox("Date Format", ["MM/DD/YYYY", "DD/MM/YYYY", "YYYY-MM-DD"])
-        st.selectbox("Time Zone", ["UTC", "America/New_York", "Europe/London", "Asia/Tokyo"])
-    
+        if st.button("🔍 View Case Details"):
+            render_notification_toast("Loading case details...", "info")
     with col2:
-        st.number_input("Session Timeout (minutes)", min_value=5, max_value=120, value=30)
-        st.selectbox("Log Level", ["Debug", "Info", "Warning", "Error", "Critical"])
-        st.checkbox("Enable Audit Logging", value=True)
-        st.checkbox("Enable Performance Metrics", value=True)
-        st.checkbox("Enable User Activity Tracking", value=True)
-    
-    st.subheader("📧 Notification Settings")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.checkbox("Email Notifications", value=True)
-        st.text_input("Admin Email", value="admin@acmeinsurance.com")
-        st.checkbox("Daily Summary Report", value=True)
-    
-    with col2:
-        st.checkbox("Critical Alert Notifications", value=True)
-        st.checkbox("Performance Alert Notifications", value=True)
-        st.checkbox("User Action Notifications", value=False)
-    
-    if st.button("Save General Settings"):
-        render_notification_toast("Settings saved successfully!", "success")
+        if st.button("👤 Assign Case"):
+            render_notification_toast("Opening case assignment dialog...", "info")
 
-def render_ai_configuration():
-    """Render AI configuration settings"""
-    st.subheader("🤖 AI Model Configuration")
+def render_ai_services():
+    """Render AI Services overview page"""
+    render_header("AI Services Hub", "Explore and manage AI capabilities")
     
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.selectbox("AI Provider", ["OpenAI", "Anthropic", "Google", "Azure OpenAI", "Hugging Face"])
-        st.text_input("API Key", value="sk-••••••••••••••••••••••••••••••••••••••••••••••••••")
-        st.selectbox("Primary Model", ["gpt-4o", "gpt-4", "claude-3-opus", "gemini-pro", "llama-3-70b"])
-        st.selectbox("Fallback Model", ["gpt-3.5-turbo", "claude-3-haiku", "gemini-flash", "llama-3-8b"])
-    
-    with col2:
-        st.slider("Temperature", min_value=0.0, max_value=1.0, value=0.7, step=0.1)
-        st.slider("Max Tokens", min_value=100, max_value=8000, value=4000, step=100)
-        st.number_input("Request Timeout (seconds)", min_value=10, max_value=300, value=60)
-        st.checkbox("Enable Streaming Responses", value=True)
-    
-    st.subheader("🧠 AI Feature Configuration")
+    st.write("Overview of available AI agents, models, and their performance.")
     
     col1, col2, col3 = st.columns(3)
-    
     with col1:
-        st.checkbox("Enable Underwriting AI", value=True)
-        st.checkbox("Enable Claims Processing AI", value=True)
-    
-    with col2:
-        st.checkbox("Enable Fraud Detection AI", value=True)
-        st.checkbox("Enable Customer Service AI", value=True)
-    
-    with col3:
-        st.checkbox("Enable Document Analysis AI", value=True)
-        st.checkbox("Enable Risk Assessment AI", value=True)
-    
-    st.subheader("🔄 Model Retraining")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.selectbox("Retraining Frequency", ["Weekly", "Monthly", "Quarterly", "Manually"])
-        st.date_input("Last Retrained", value=datetime.now() - timedelta(days=14))
-    
-    with col2:
-        st.selectbox("Training Data Source", ["Production Data", "Synthetic Data", "Mixed"])
-        st.slider("Training Data Percentage", min_value=10, max_value=100, value=30, step=10)
-    
-    if st.button("Save AI Configuration"):
-        render_notification_toast("AI configuration saved successfully!", "success")
-
-def render_ui_configuration():
-    """Render UI configuration settings"""
-    st.subheader("🎨 Theme Configuration")
-    
-    current_theme = get_current_theme()
-    theme_config = get_theme_config()
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.selectbox("Default Theme", ["Light", "Dark", "System Default"], 
-                    index=0 if current_theme == "light" else 1)
-        st.color_picker("Primary Color", value=theme_config["primaryColor"])
-        st.color_picker("Background Color", value=theme_config["backgroundColor"])
-        st.color_picker("Secondary Background Color", value=theme_config["secondaryBackgroundColor"])
-    
-    with col2:
-        st.color_picker("Text Color", value=theme_config["textColor"])
-        st.selectbox("Font Family", ["Inter", "Roboto", "Open Sans", "Lato", "System Default"])
-        st.slider("Border Radius", min_value=0, max_value=20, value=8)
-        st.checkbox("Enable Animations", value=True)
-    
-    st.subheader("📱 Layout Configuration")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.selectbox("Default Layout", ["Wide", "Centered", "Narrow"])
-        st.selectbox("Sidebar Position", ["Left", "Right", "Hidden"])
-        st.checkbox("Collapsible Sidebar", value=True)
-    
-    with col2:
-        st.selectbox("Default Page", ["Dashboard", "Policy Management", "Claims Processing"])
-        st.checkbox("Show Quick Stats in Sidebar", value=True)
-        st.checkbox("Show Notifications in Header", value=True)
-    
-    if st.button("Save UI Configuration"):
-        render_notification_toast("UI configuration saved successfully!", "success")
-        st.rerun()
-
-def render_integrations():
-    """Render integrations configuration"""
-    st.subheader("🔌 External Integrations")
-    
-    # Sample integrations
-    integrations = [
-        {
-            "name": "CRM System",
-            "status": "Connected",
-            "last_sync": datetime.now() - timedelta(minutes=15)
-        },
-        {
-            "name": "Payment Gateway",
-            "status": "Connected",
-            "last_sync": datetime.now() - timedelta(hours=2)
-        },
-        {
-            "name": "Document Management",
-            "status": "Connected",
-            "last_sync": datetime.now() - timedelta(hours=1)
-        },
-        {
-            "name": "Email Service",
-            "status": "Connected",
-            "last_sync": datetime.now() - timedelta(minutes=30)
-        },
-        {
-            "name": "Analytics Platform",
-            "status": "Error",
-            "last_sync": datetime.now() - timedelta(days=1)
-        }
-    ]
-    
-    for integration in integrations:
-        status_color = "success" if integration["status"] == "Connected" else "danger"
-        
-        content = f"""
-        <div class="integration-details">
-            <div><strong>Status:</strong> {integration["status"]}</div>
-            <div><strong>Last Sync:</strong> {integration["last_sync"].strftime('%Y-%m-%d %H:%M')}</div>
-        </div>
-        """
-        
-        footer = "Configure" if integration["status"] == "Connected" else "Reconnect"
-        
-        render_card(
-            title=integration["name"],
-            content=content,
-            footer=footer,
-            icon="🔌",
-            color=f"var(--{status_color}-color)"
+        render_feature_card(
+            title="Underwriting AI",
+            description="Automates risk assessment and policy pricing.",
+            icon="📝", color="var(--info-color)",
+            button_text="View Details", button_key="underwriting_ai"
         )
-    
-    st.subheader("➕ Add New Integration")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.selectbox("Integration Type", ["CRM System", "Payment Gateway", "Document Management", "Email Service", "Analytics Platform", "Custom API"])
-        st.text_input("Integration Name")
-    
     with col2:
-        st.text_input("API Endpoint")
-        st.text_input("API Key")
-    
-    if st.button("Add Integration"):
-        render_notification_toast("Integration added successfully!", "success")
+        render_feature_card(
+            title="Claims Processing AI",
+            description="Accelerates claim validation and settlement.",
+            icon="⚖️", color="var(--success-color)",
+            button_text="View Details", button_key="claims_ai"
+        )
+    with col3:
+        render_feature_card(
+            title="Fraud Detection AI",
+            description="Identifies suspicious patterns and anomalies.",
+            icon="🕵️", color="var(--warning-color)",
+            button_text="View Details", button_key="fraud_ai"
+        )
+        
+    st.subheader("Overall AI Performance")
+    # Add charts or metrics related to overall AI performance
+    df_ai_perf = pd.DataFrame({
+        'Metric': ['Accuracy', 'Latency (ms)', 'Throughput (req/s)'],
+        'Value': [94.2, 850, 15.5]
+    })
+    st.dataframe(df_ai_perf, use_container_width=True)
 
-# Main app function
+# Main application logic
 def main():
     """Main application function"""
-    # Render navigation sidebar
     render_navigation()
     
-    # Render theme toggle
-    render_theme_toggle()
+    # Floating Action Button (Example: New Claim)
+    if render_floating_action_button("➕", tooltip="Submit New Claim", action_key="new_claim"):
+        st.session_state.current_page = 'Claims_Processing'
+        render_notification_toast("Navigating to New Claim submission...", "info")
+        st.experimental_rerun()
     
-    # Render current page
-    current_page = st.session_state.current_page
+    # Page routing
+    page = st.session_state.current_page
     
-    if current_page == "Dashboard":
+    if page == 'Dashboard':
         render_dashboard()
-    elif current_page == "Policy_Management":
+    elif page == 'Policy_Management':
         render_policy_management()
-    elif current_page == "Claims_Processing":
+    elif page == 'Claims_Processing':
         render_claims_processing()
-    elif current_page == "Analytics":
+    elif page == 'Analytics':
         render_analytics()
-    elif current_page == "Fraud_Detection":
+    elif page == 'Fraud_Detection':
         render_fraud_detection()
-    elif current_page == "System_Config":
+    elif page == 'Knowledge_Base':
+        render_knowledge_base()
+    elif page == 'System_Config':
         render_system_config()
+    elif page == 'Notifications':
+        render_notifications()
+    elif page == 'User_Management':
+        render_user_management()
+    elif page == 'Human_Escalation':
+        render_human_escalation()
+    elif page == 'AI_Services':
+        render_ai_services()
     else:
-        # Placeholder for other pages
-        render_header(current_page, "This section is under development")
-        
-        st.info("This section is currently under development. Please check back later.")
+        st.error("Page not found!")
+        render_dashboard() # Default to dashboard
 
 if __name__ == "__main__":
     main()
