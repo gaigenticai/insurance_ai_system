@@ -24,6 +24,7 @@ sys.path.insert(0, project_root)
 
 from main import InsuranceAIApplication
 from config.settings import get_settings
+from utils import extract_text_from_files, get_answer
 
 # Page configuration
 st.set_page_config(
@@ -125,6 +126,22 @@ class ProfessionalInsuranceUI:
             st.session_state.analysis_history = []
         if 'current_analysis' not in st.session_state:
             st.session_state.current_analysis = None
+        if 'chat_history' not in st.session_state:
+            st.session_state.chat_history = []
+
+    def render_chatbot(self):
+        """Render simple QA chatbot."""
+        with st.sidebar.expander("💬 Chat with Assistant", expanded=False):
+            question = st.text_input("Ask a question", key="pro_chat_input")
+            if question:
+                answer = get_answer(question)
+                st.session_state.chat_history.append(("You", question))
+                st.session_state.chat_history.append(("Assistant", answer))
+
+            for speaker, text in st.session_state.chat_history[-6:]:
+                st.markdown(f"**{speaker}:** {text}")
+        if 'chat_history' not in st.session_state:
+            st.session_state.chat_history = []
     
     async def initialize_app(self):
         """Initialize the Insurance AI Application"""
@@ -178,7 +195,9 @@ class ProfessionalInsuranceUI:
                 "⚙️ System Settings"
             ]
         )
-        
+
+        self.render_chatbot()
+
         return page
     
     def render_dashboard(self):
@@ -416,7 +435,7 @@ class ProfessionalInsuranceUI:
             with col2:
                 policy_type = st.selectbox("Policy Type", [
                     "Auto Insurance",
-                    "Home Insurance", 
+                    "Home Insurance",
                     "Life Insurance",
                     "Health Insurance",
                     "Business Insurance"
@@ -424,6 +443,13 @@ class ProfessionalInsuranceUI:
                 coverage_amount = st.number_input("Coverage Amount ($)", min_value=0, value=250000)
                 property_value = st.number_input("Property Value ($)", min_value=0, value=300000)
                 debt_to_income = st.slider("Debt-to-Income Ratio", 0.0, 1.0, 0.25, 0.01)
+
+            uploaded_docs = st.file_uploader(
+                "Upload Supporting Documents",
+                type=["pdf", "png", "jpg", "jpeg"],
+                accept_multiple_files=True,
+                help="Scanned forms, IDs, or other relevant files",
+            )
             
             # Additional information
             st.subheader("📝 Additional Information")
@@ -436,6 +462,11 @@ class ProfessionalInsuranceUI:
             submitted = st.form_submit_button("🎯 Analyze Application", type="primary")
             
             if submitted:
+                extracted_text = extract_text_from_files(uploaded_docs)
+                if extracted_text:
+                    additional_info = (additional_info + "\n" + extracted_text).strip()
+                    st.info("Text extracted from uploaded documents has been appended to notes.")
+
                 self._process_underwriting_application({
                     "applicant_name": applicant_name,
                     "age": age,
