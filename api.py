@@ -15,6 +15,8 @@ from fastapi.responses import JSONResponse
 from fastapi.openapi.docs import get_swagger_ui_html
 import uvicorn
 
+from utils.knowledge_base import get_answer
+
 from agents.config_agent import ConfigAgent
 from schemas import (
     UnderwritingRequest, UnderwritingResponse,
@@ -150,6 +152,15 @@ async def health_check():
         "status": "healthy",
         "message": "Insurance AI System API is running"
     }
+
+
+# Simple chatbot endpoint using the knowledge base
+@app.post("/chatbot", tags=["System"])
+async def chatbot(question: Dict[str, str]):
+    """Return a canned answer from the knowledge base."""
+    q = question.get("question", "")
+    answer = get_answer(q)
+    return {"answer": answer}
 
 
 # Underwriting endpoint

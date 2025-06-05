@@ -25,6 +25,12 @@ REDIS_DB = os.environ.get('REDIS_DB', '0')
 # Initialize Redis client lazily
 redis_client = None
 
+# Expose DB insert function for testing convenience
+try:
+    from db_connection import insert_record
+except Exception:  # pragma: no cover - during tests insert_record may be mocked
+    insert_record = None
+
 def initialize_redis_client():
     """Initialize Redis client"""
     global redis_client
@@ -107,8 +113,6 @@ def publish_event(event_type: str, payload: Dict[str, Any]) -> bool:
         
         # Also store in events table if DB is available
         try:
-            from db_connection import insert_record
-            
             event_data = {
                 'event_id': event_id,
                 'event_type': event_type,
@@ -117,8 +121,8 @@ def publish_event(event_type: str, payload: Dict[str, Any]) -> bool:
                 'source': full_payload.get('source', 'system'),
                 'institution_id': full_payload.get('institution_id', 'unknown')
             }
-            
-            insert_record('events', event_data)
+            if insert_record:
+                insert_record('events', event_data)
         except Exception as e:
             logger.warning(f"Failed to store event in database: {e}")
         

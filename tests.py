@@ -114,7 +114,7 @@ class TestAPI(unittest.TestCase):
 
 
 @pytest.mark.asyncio
-class TestCeleryTasks:
+class TestCeleryTasks(unittest.TestCase):
     """Test Celery tasks."""
     
     @patch('tasks.ConfigAgent')

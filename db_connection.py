@@ -188,7 +188,11 @@ def insert_record(table: str, data: Dict, returning: str = "id") -> Optional[Dic
     )
     
     with get_db_cursor(commit=True) as cursor:
-        logger.info(f"Executing insert: {query.as_string(cursor)} with data: {data}")
+        try:
+            log_query = query.as_string(cursor)
+        except Exception:
+            log_query = str(query)
+        logger.info(f"Executing insert: {log_query} with data: {data}")
         cursor.execute(query, data)
         if returning:
             return cursor.fetchone()
@@ -230,7 +234,11 @@ def update_record(table: str, id_value: Any, data: Dict, id_column: str = "id") 
     params = {**data, "id_value": id_value}
     
     with get_db_cursor(commit=True) as cursor:
-        logger.info(f"Executing update: {query.as_string(cursor)} with params: {params}")
+        try:
+            log_query = query.as_string(cursor)
+        except Exception:
+            log_query = str(query)
+        logger.info(f"Executing update: {log_query} with params: {params}")
         cursor.execute(query, params)
         return cursor.rowcount > 0
 
@@ -255,7 +263,10 @@ def get_record_by_id(table: str, id_value: Any, id_column: str = "id") -> Option
     )
     
     with get_db_cursor() as cursor:
-        log_query = query.as_string(cursor)
+        try:
+            log_query = query.as_string(cursor)
+        except Exception:
+            log_query = str(query)
         logger.info(f"Executing query: {log_query} with params: {params}")
         cursor.execute(query, params)
         return cursor.fetchone() # Fetch one record
@@ -287,7 +298,10 @@ def get_records(table: str, conditions: Optional[Dict[str, Any]] = None, schema:
     query = sql.SQL("").join(query_parts)
 
     with get_db_cursor() as cursor:
-        log_query = query.as_string(cursor)
+        try:
+            log_query = query.as_string(cursor)
+        except Exception:
+            log_query = str(query)
         logger.info(f"Executing query: {log_query} with params: {params}")
         cursor.execute(query, params)
         return cursor.fetchall()
@@ -313,7 +327,10 @@ def delete_record(table: str, id_value: Any, id_column: str = "id") -> bool:
     )
     
     with get_db_cursor(commit=True) as cursor:
-        log_query = query.as_string(cursor)
+        try:
+            log_query = query.as_string(cursor)
+        except Exception:
+            log_query = str(query)
         logger.info(f"Executing delete: {log_query} with params: {params}")
         cursor.execute(query, params)
         return cursor.rowcount > 0

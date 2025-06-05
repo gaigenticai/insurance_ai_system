@@ -48,7 +48,9 @@ class EventType(str, Enum):
 # Base models
 class BaseRequest(BaseModel):
     """Base model for all API requests."""
-    institution_id: str = Field(..., description="Institution identifier")
+    institution_id: Optional[str] = Field(
+        None, description="Institution identifier supplied via header"
+    )
 
 
 class BaseResponse(BaseModel):
