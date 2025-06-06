@@ -875,9 +875,24 @@ import redis.asyncio as redis
 
 
 
-@app.on_startup
-async def startup():
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
     redis_instance = redis.from_url("redis://localhost", encoding="utf8", decode_responses=True)
     await FastAPILimiter.init(redis_instance)
+    yield
+    # Shutdown
+    await FastAPILimiter.close()
+
+app = FastAPI(
+    title="Insurance AI System API",
+    description="Production-grade API for insurance underwriting, claims, and actuarial analysis",
+    version="1.0.0",
+    docs_url=None,  # Disable default docs
+    redoc_url=None,  # Disable default redoc
+    lifespan=lifespan
+)
 
 
