@@ -14,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.openapi.docs import get_swagger_ui_html
 import uvicorn
+from fastapi_limiter.depends import RateLimiter
 
 from utils.knowledge_base import get_answer
 
