@@ -203,3 +203,79 @@ COMMENT ON TABLE insurance_ai.claims IS 'Stores claim information';
 COMMENT ON TABLE insurance_ai.claim_decisions IS 'Stores claim processing results';
 COMMENT ON TABLE insurance_ai.actuarial_data IS 'Stores actuarial calculations and models';
 COMMENT ON TABLE insurance_ai.audit_logs IS 'Tracks system activities for auditing purposes';
+
+
+-- Add index for document_id if it exists in a table, based on ai_enhanced_schema_update_fixed.sql
+-- Assuming a 'documents' table exists or will be created with a 'document_id' column
+-- CREATE INDEX idx_document_analysis_document ON insurance_ai.document_analysis(document_id);
+
+
+
+
+-- Sessions table - for tracking user sessions
+CREATE TABLE insurance_ai.sessions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID,
+    session_id VARCHAR(255) NOT NULL UNIQUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP WITH TIME ZONE,
+    session_data JSONB NOT NULL DEFAULT \'{}\'::jsonb
+);
+
+CREATE INDEX idx_sessions_session_id ON insurance_ai.sessions(session_id);
+CREATE INDEX idx_sessions_user_id ON insurance_ai.sessions(user_id);
+
+
+
+
+CREATE INDEX idx_sessions_user_id ON insurance_ai.sessions(user_id);
+
+
+
+
+-- Documents table - stores information about uploaded documents
+CREATE TABLE insurance_ai.documents (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    institution_id UUID NOT NULL REFERENCES insurance_ai.institutions(id) ON DELETE CASCADE,
+    file_name VARCHAR(255) NOT NULL,
+    file_type VARCHAR(50),
+    file_size INT,
+    upload_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    document_content TEXT, -- Storing text content extracted from documents
+    metadata JSONB NOT NULL DEFAULT \'{}\':jsonb
+);
+
+CREATE INDEX idx_documents_institution ON insurance_ai.documents(institution_id);
+
+-- Document analysis table - stores results of AI analysis on documents
+CREATE TABLE insurance_ai.document_analysis (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    document_id UUID NOT NULL REFERENCES insurance_ai.documents(id) ON DELETE CASCADE,
+    analysis_type VARCHAR(100) NOT NULL,
+    analysis_result JSONB NOT NULL DEFAULT \'{}\':jsonb,
+    analysis_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    analyzed_by VARCHAR(100)
+);
+
+CREATE INDEX idx_document_analysis_document ON insurance_ai.document_analysis(document_id);
+
+
+
+
+-- Users table - for managing user accounts and roles
+CREATE TABLE insurance_ai.users (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    username VARCHAR(50) NOT NULL UNIQUE,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    hashed_password VARCHAR(255) NOT NULL,
+    role VARCHAR(50) NOT NULL DEFAULT 'customer',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    CONSTRAINT valid_role CHECK (role IN ('admin', 'underwriter', 'claims_adjuster', 'actuary', 'customer', 'reviewer', 'compliance'))
+);
+
+CREATE INDEX idx_users_email ON insurance_ai.users(email);
+CREATE INDEX idx_users_role ON insurance_ai.users(role);
+
+

@@ -153,12 +153,13 @@ class CeleryConfig:
 @dataclass
 class LoggingConfig:
     """Logging configuration"""
-    level: str = field(default_factory=lambda: os.getenv('LOG_LEVEL', 'INFO'))
+    level: str = field(default_factory=lambda: os.getenv("LOG_LEVEL", "INFO"))
     format: str = field(default_factory=lambda: 
-        os.getenv('LOG_FORMAT', '%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-    file: Optional[str] = field(default_factory=lambda: os.getenv('LOG_FILE'))
-    max_bytes: int = field(default_factory=lambda: int(os.getenv('LOG_MAX_BYTES', '10485760')))  # 10MB
-    backup_count: int = field(default_factory=lambda: int(os.getenv('LOG_BACKUP_COUNT', '5')))
+        os.getenv("LOG_FORMAT", "%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
+    file: Optional[str] = field(default_factory=lambda: os.getenv("LOG_FILE"))
+    max_bytes: int = field(default_factory=lambda: int(os.getenv("LOG_MAX_BYTES", "10485760")))  # 10MB
+    backup_count: int = field(default_factory=lambda: int(os.getenv("LOG_BACKUP_COUNT", "5")))
+    sentry_dsn: Optional[str] = field(default_factory=lambda: os.getenv("SENTRY_DSN"))
 
 @dataclass
 class InstitutionConfig:
@@ -204,6 +205,7 @@ class Settings:
         self.logging = LoggingConfig()
         self.institution = InstitutionConfig()
         self.features = FeatureFlags()
+        self.sentry_dsn = self.logging.sentry_dsn
         
         # Validate configuration
         self._validate()
@@ -301,3 +303,11 @@ def reload_settings():
     global settings
     settings = Settings()
     return settings
+
+    sentry_dsn: Optional[str] = field(default_factory=lambda: os.getenv("SENTRY_DSN"))
+
+
+
+    version: str = field(default_factory=lambda: os.getenv("APP_VERSION", "1.0.0"))
+
+

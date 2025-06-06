@@ -381,8 +381,9 @@ class AIServiceManager(ServiceInterface):
         # If all providers fail, return error response
         return AIResponse(
             content="AI analysis temporarily unavailable",
+            model="",
             confidence=0.0,
-            metadata={"error": "All AI providers failed", "fallback_attempted": True}
+            error="All AI providers failed to generate a response."
         )
     
     def get_available_providers(self) -> List[str]:

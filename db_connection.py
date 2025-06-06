@@ -361,3 +361,15 @@ def close_all_connections():
     else:
         logger.warning("Attempted to close connections, but pool was not initialized.")
 
+
+
+from sqlalchemy.ext.declarative import declarative_base
+Base = declarative_base()
+
+
+
+
+from sqlalchemy.ext.declarative import declarative_base
+Base = declarative_base()
+
+

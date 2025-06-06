@@ -287,3 +287,33 @@ class ActuarialBenchmarkedEvent(EventPayload):
     """Event payload for actuarial.benchmarked events."""
     analysis_id: str = Field(..., description="Analysis identifier")
     benchmark_results: Dict[str, Any] = Field(..., description="Benchmark results")
+
+
+
+class UserBase(BaseModel):
+    email: str
+    username: str
+
+class UserCreate(UserBase):
+    password: str
+    role: str = "customer"
+
+class User(UserBase):
+    id: UUID
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+    role: str
+
+    class Config:
+        from_attributes = True
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class TokenData(BaseModel):
+    username: Optional[str] = None
+
+
+

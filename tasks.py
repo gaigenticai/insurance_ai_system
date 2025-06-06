@@ -68,7 +68,7 @@ class PatchableRequestTask(BaseTask):
         self._patched_request = None
 
 
-@celery_app.task(bind=True, base=PatchableRequestTask)
+@celery_app.task(bind=True, base=PatchableRequestTask, autoretry_for=(Exception,), retry_backoff=True, max_retries=5)
 def run_underwriting_task(self, application_data: Dict[str, Any], institution_id: str) -> Dict[str, Any]:
     """
     Process an underwriting application asynchronously.
@@ -111,7 +111,7 @@ def run_underwriting_task(self, application_data: Dict[str, Any], institution_id
         raise
 
 
-@celery_app.task(bind=True, base=PatchableRequestTask)
+@celery_app.task(bind=True, base=PatchableRequestTask, autoretry_for=(Exception,), retry_backoff=True, max_retries=5)
 def run_claims_task(self, claim_data: Dict[str, Any], institution_id: str) -> Dict[str, Any]:
     """
     Process a claim asynchronously.
@@ -155,7 +155,7 @@ def run_claims_task(self, claim_data: Dict[str, Any], institution_id: str) -> Di
         raise
 
 
-@celery_app.task(bind=True, base=PatchableRequestTask)
+@celery_app.task(bind=True, base=PatchableRequestTask, autoretry_for=(Exception,), retry_backoff=True, max_retries=5)
 def run_actuarial_task(self, data_source_info: Dict[str, Any], institution_id: str) -> Dict[str, Any]:
     """
     Run actuarial analysis asynchronously.
@@ -198,7 +198,7 @@ def run_actuarial_task(self, data_source_info: Dict[str, Any], institution_id: s
         raise
 
 
-@celery_app.task(bind=True, base=PatchableRequestTask)
+@celery_app.task(bind=True, base=PatchableRequestTask, autoretry_for=(Exception,), retry_backoff=True, max_retries=5)
 def generate_report_task(self, report_type: str, data: Dict[str, Any], institution_id: str) -> Dict[str, Any]:
     """
     Generate a report asynchronously.
