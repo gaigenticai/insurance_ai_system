@@ -1,5 +1,5 @@
 import os
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Optional
 
 class ConfigValidator:
     """
@@ -53,3 +53,5 @@ class ConfigValidator:
                 return False, f"Missing required actuarial field: {field}"
         
         return True, None
+
+from typing import Tuple

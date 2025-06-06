@@ -14,13 +14,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.openapi.docs import get_swagger_ui_html
 import uvicorn
-from fastapi_limiter.depends import RateLimiter
-import redis
-from fastapi_limiter import FastAPILimiter
-import redis
-from fastapi_limiter import FastAPILimiter
-
-from utils.knowledge_base import get_answer
 
 from agents.config_agent import ConfigAgent
 from schemas import (
@@ -159,17 +152,8 @@ async def health_check():
     }
 
 
-# Simple chatbot endpoint using the knowledge base
-@app.post("/chatbot", tags=["System"])
-async def chatbot(question: Dict[str, str]):
-    """Return a canned answer from the knowledge base."""
-    q = question.get("question", "")
-    answer = get_answer(q)
-    return {"answer": answer}
-
-
 # Underwriting endpoint
-@app.post("/run/underwriting", response_model=UnderwritingResponse, tags=["Underwriting"], dependencies=[Depends(RateLimiter(times=5, seconds=60))])
+@app.post("/run/underwriting", response_model=UnderwritingResponse, tags=["Underwriting"])
 async def run_underwriting(
     request: UnderwritingRequest,
     background_tasks: BackgroundTasks,
@@ -233,7 +217,7 @@ async def run_underwriting(
 
 
 # Claims endpoint
-@app.post("/run/claims", response_model=ClaimsResponse, tags=["Claims"], dependencies=[Depends(RateLimiter(times=5, seconds=60))])
+@app.post("/run/claims", response_model=ClaimsResponse, tags=["Claims"])
 async def run_claims(
     request: ClaimsRequest,
     background_tasks: BackgroundTasks,
@@ -297,7 +281,7 @@ async def run_claims(
 
 
 # Actuarial endpoint
-@app.post("/run/actuarial", response_model=ActuarialResponse, tags=["Actuarial"], dependencies=[Depends(RateLimiter(times=5, seconds=60))])
+@app.post("/run/actuarial", response_model=ActuarialResponse, tags=["Actuarial"])
 async def run_actuarial(
     request: ActuarialRequest,
     background_tasks: BackgroundTasks,
@@ -395,7 +379,7 @@ async def get_task_status_endpoint(
             "message": "Task status retrieved successfully",
             "task_id": task_id,
             "task_type": task_data.get("type"),
-            "task_status": task_data.get("status"),
+            "status": task_data.get("status"),
             "created_at": task_data.get("created_at"),
             "updated_at": task_data.get("updated_at"),
             "result": task_data.get("result"),
@@ -770,133 +754,3 @@ if __name__ == "__main__":
     
     logger.info(f"Starting Insurance AI System API on {args.host}:{args.port}")
     uvicorn.run(app, host=args.host, port=args.port)
-
-
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from jose import JWTError, jwt
-from passlib.context import CryptContext
-from datetime import datetime, timedelta
-from schemas import User, UserCreate, Token, TokenData
-from core.security.rbac import UserRole, Permission, has_permission
-
-
-
-
-# Security settings
-SECRET_KEY = os.getenv("SECRET_KEY", "super-secret-key")
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
-
-def get_password_hash(password):
-    return pwd_context.hash(password)
-
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
-    to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
-
-async def get_current_user(token: str = Depends(oauth2_scheme)):
-    credentials_exception = HTTPException(
-        status_code=401,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
-            raise credentials_exception
-        token_data = TokenData(username=username)
-    except JWTError:
-        raise credentials_exception
-    # In a real application, you would fetch the user from the database
-    # For this example, we'll use a dummy user
-    if token_data.username == "admin":
-        return User(id=uuid.uuid4(), email="admin@example.com", username="admin", is_active=True, created_at=datetime.utcnow(), updated_at=datetime.utcnow(), role="admin")
-    elif token_data.username == "user":
-        return User(id=uuid.uuid4(), email="user@example.com", username="user", is_active=True, created_at=datetime.utcnow(), updated_at=datetime.utcnow(), role="customer")
-    raise credentials_exception
-
-def get_current_active_user(current_user: User = Depends(get_current_user)):
-    if not current_user.is_active:
-        raise HTTPException(status_code=400, detail="Inactive user")
-    return current_user
-
-def require_permission(permission: Permission):
-    def permission_checker(current_user: User = Depends(get_current_active_user)):
-        if not has_permission(UserRole(current_user.role), permission):
-            raise HTTPException(status_code=403, detail="Not enough permissions")
-        return current_user
-    return permission_checker
-
-
-
-
-@app.post("/token", response_model=Token, tags=["Authentication"])
-async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
-    user = None
-    if form_data.username == "admin" and form_data.password == "admin":
-        user = User(id=uuid.uuid4(), email="admin@example.com", username="admin", is_active=True, created_at=datetime.utcnow(), updated_at=datetime.utcnow(), role="admin")
-    elif form_data.username == "user" and form_data.password == "user":
-        user = User(id=uuid.uuid4(), email="user@example.com", username="user", is_active=True, created_at=datetime.utcnow(), updated_at=datetime.utcnow(), role="customer")
-
-    if not user:
-        raise HTTPException(status_code=400, detail="Incorrect username or password")
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user.username, "role": user.role}, expires_delta=access_token_expires
-    )
-    return {"access_token": access_token, "token_type": "bearer"}
-
-
-@app.get("/users/me/", response_model=User, tags=["Authentication"])
-async def read_users_me(current_user: User = Depends(get_current_active_user)):
-    return current_user
-
-
-@app.get("/protected-admin-route", tags=["Admin"], dependencies=[Depends(require_permission(Permission.MANAGE_USERS))])
-async def protected_admin_route():
-    return {"message": "Welcome, admin user! You have access to this protected route."}
-
-
-
-
-from fastapi_limiter import FastAPILimiter
-from fastapi_limiter.depends import RateLimiter
-import redis.asyncio as redis
-
-
-
-
-from contextlib import asynccontextmanager
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Startup: Initialize resources
-    redis_instance = redis.from_url("redis://default:dDkwkLMlexeGsZTkWbfOcxXYJsJMRfpM@hopper.proxy.rlwy.net:20859", encoding="utf-8", decode_responses=True)
-    await FastAPILimiter.init(redis_instance)
-    yield
-    # Cleanup: Release resources
-    await redis_instance.close()
-
-app = FastAPI(
-    title="Insurance AI System API",
-    description="Production-grade API for insurance underwriting, claims, and actuarial analysis",
-    version="1.0.0",
-    docs_url=None,  # Disable default docs
-    redoc_url=None,  # Disable default redoc
-    lifespan=lifespan
-)
-
-

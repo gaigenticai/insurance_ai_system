@@ -40,19 +40,6 @@ class ConfigAgent:
         self.institution_id = None
         self.institution_data = None
         self._load_institution()
-
-    def get_config(self, institution_id: str) -> Dict[str, Any]:
-        """Return configuration for the given institution ID if loaded."""
-        if self.institution_id == institution_id:
-            return self.institution_data or {}
-        # Fallback: attempt to fetch by ID but ignore errors in test mode
-        try:
-            records = get_records('institutions', {'id': institution_id})
-            if records:
-                return records[0]
-        except Exception:
-            pass
-        return {}
     
     def _load_institution(self) -> None:
         """Load institution data from the database."""

@@ -13,7 +13,6 @@ import sys
 import asyncio
 from typing import Dict, Any, Optional
 import signal
-import threading
 
 # Add project root to Python path
 project_root = os.path.dirname(os.path.abspath(__file__))
@@ -74,18 +73,7 @@ class InsuranceAIApplication:
             
             # Initialize services
             self.bootstrap = await initialize_services(bootstrap_config)
-
-            # Initialize Sentry if DSN is provided
-            if self.settings.app.sentry_dsn:
-                sentry_sdk.init(
-                    dsn=self.settings.app.sentry_dsn,
-                    environment=self.settings.app.environment,
-                    release=f"insurance-ai-system@{self.settings.app.version}",
-                    traces_sample_rate=1.0,
-                    profiles_sample_rate=1.0,
-                )
-                logger.info("Sentry initialized successfully.")
-
+            
             # Setup signal handlers for graceful shutdown
             self._setup_signal_handlers()
             
@@ -100,12 +88,9 @@ class InsuranceAIApplication:
         def signal_handler(signum, frame):
             logger.info(f"Received signal {signum}, initiating shutdown")
             self._shutdown_event.set()
-
-        if threading.current_thread() is threading.main_thread():
-            signal.signal(signal.SIGINT, signal_handler)
-            signal.signal(signal.SIGTERM, signal_handler)
-        else:
-            logger.warning("Signal handlers can only be set in the main thread; skipping")
+        
+        signal.signal(signal.SIGINT, signal_handler)
+        signal.signal(signal.SIGTERM, signal_handler)
     
     async def run_underwriting_analysis(self, application_data: Dict[str, Any]) -> Dict[str, Any]:
         """Run underwriting analysis using AI services"""
@@ -396,9 +381,3 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
-
-
-import sentry_sdk
-
-
-

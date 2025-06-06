@@ -8,7 +8,6 @@ no hardcoded values and full configurability.
 import logging
 import json
 import asyncio
-import time
 from typing import Dict, Any, Optional, List, Protocol
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
@@ -381,9 +380,8 @@ class AIServiceManager(ServiceInterface):
         # If all providers fail, return error response
         return AIResponse(
             content="AI analysis temporarily unavailable",
-            model="",
             confidence=0.0,
-            error="All AI providers failed to generate a response."
+            metadata={"error": "All AI providers failed", "fallback_attempted": True}
         )
     
     def get_available_providers(self) -> List[str]:
@@ -461,5 +459,5 @@ class AIServiceManager(ServiceInterface):
         return {
             "benchmark_results": benchmark_results,
             "test_prompt": test_prompt,
-            "timestamp": time.time()
+            "timestamp": asyncio.get_event_loop().time()
         }

@@ -48,9 +48,7 @@ class EventType(str, Enum):
 # Base models
 class BaseRequest(BaseModel):
     """Base model for all API requests."""
-    institution_id: Optional[str] = Field(
-        None, description="Institution identifier supplied via header"
-    )
+    institution_id: str = Field(..., description="Institution identifier")
 
 
 class BaseResponse(BaseModel):
@@ -194,7 +192,7 @@ class TaskStatusResponse(BaseResponse):
     """Response model for task status requests."""
     task_id: str = Field(..., description="Unique identifier for the task")
     task_type: TaskType = Field(..., description="Type of task")
-    task_status: TaskStatus = Field(..., description="Current status of the task")
+    status: TaskStatus = Field(..., description="Current status of the task")
     created_at: datetime = Field(..., description="Task creation timestamp")
     updated_at: datetime = Field(..., description="Task last update timestamp")
     result: Optional[Dict[str, Any]] = Field(None, description="Task result if available")
@@ -208,7 +206,7 @@ class TaskStatusResponse(BaseResponse):
                 "message": "Task status retrieved successfully",
                 "task_id": "12345678-1234-5678-1234-567812345678",
                 "task_type": "underwriting",
-                "task_status": "SUCCESS",
+                "status": "SUCCESS",
                 "created_at": "2023-06-01T10:00:00",
                 "updated_at": "2023-06-01T10:01:30",
                 "result": {
@@ -287,33 +285,3 @@ class ActuarialBenchmarkedEvent(EventPayload):
     """Event payload for actuarial.benchmarked events."""
     analysis_id: str = Field(..., description="Analysis identifier")
     benchmark_results: Dict[str, Any] = Field(..., description="Benchmark results")
-
-
-
-class UserBase(BaseModel):
-    email: str
-    username: str
-
-class UserCreate(UserBase):
-    password: str
-    role: str = "customer"
-
-class User(UserBase):
-    id: UUID
-    is_active: bool
-    created_at: datetime
-    updated_at: datetime
-    role: str
-
-    class Config:
-        from_attributes = True
-
-class Token(BaseModel):
-    access_token: str
-    token_type: str
-
-class TokenData(BaseModel):
-    username: Optional[str] = None
-
-
-

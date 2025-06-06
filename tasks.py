@@ -9,7 +9,6 @@ from datetime import datetime
 from typing import Dict, Any, Optional
 
 from celery import Task
-from celery.app.task import Context
 from celery.utils.log import get_task_logger
 
 from celery_app import celery_app
@@ -46,29 +45,28 @@ class BaseTask(Task):
             )
         except Exception as e:
             logger.error(f"Failed to update task status: {e}")
+    
+    def on_success(self, retval, task_id, args, kwargs):
+        """Handle task success."""
+        logger.info(f"Task {task_id} completed successfully")
+        
+        # Update task status in database
+        try:
+            update_record(
+                'tasks',
+                task_id,
+                {
+                    'status': TaskStatus.SUCCESS.value,
+                    'result': retval,
+                    'updated_at': datetime.utcnow()
+                },
+                id_column='task_id'
+            )
+        except Exception as e:
+            logger.error(f"Failed to update task status: {e}")
 
 
-class PatchableRequestTask(BaseTask):
-    """Task class with a patchable request attribute for unit tests."""
-
-    _patched_request: Optional[Context] = None
-
-    @property
-    def request(self):
-        if self._patched_request is not None:
-            return self._patched_request
-        return super().request
-
-    @request.setter
-    def request(self, value):
-        self._patched_request = value
-
-    @request.deleter
-    def request(self):
-        self._patched_request = None
-
-
-@celery_app.task(bind=True, base=PatchableRequestTask, autoretry_for=(Exception,), retry_backoff=True, max_retries=5)
+@celery_app.task(bind=True, base=BaseTask)
 def run_underwriting_task(self, application_data: Dict[str, Any], institution_id: str) -> Dict[str, Any]:
     """
     Process an underwriting application asynchronously.
@@ -80,7 +78,7 @@ def run_underwriting_task(self, application_data: Dict[str, Any], institution_id
     Returns:
         Dictionary containing the underwriting decision and details
     """
-    task_id = getattr(self.request, "id", str(uuid.uuid4()))
+    task_id = self.request.id
     logger.info(f"Starting underwriting task {task_id} for institution {institution_id}")
     
     try:
@@ -111,7 +109,7 @@ def run_underwriting_task(self, application_data: Dict[str, Any], institution_id
         raise
 
 
-@celery_app.task(bind=True, base=PatchableRequestTask, autoretry_for=(Exception,), retry_backoff=True, max_retries=5)
+@celery_app.task(bind=True, base=BaseTask)
 def run_claims_task(self, claim_data: Dict[str, Any], institution_id: str) -> Dict[str, Any]:
     """
     Process a claim asynchronously.
@@ -123,7 +121,7 @@ def run_claims_task(self, claim_data: Dict[str, Any], institution_id: str) -> Di
     Returns:
         Dictionary containing the claim processing result
     """
-    task_id = getattr(self.request, "id", str(uuid.uuid4()))
+    task_id = self.request.id
     logger.info(f"Starting claims task {task_id} for institution {institution_id}")
     
     try:
@@ -155,7 +153,7 @@ def run_claims_task(self, claim_data: Dict[str, Any], institution_id: str) -> Di
         raise
 
 
-@celery_app.task(bind=True, base=PatchableRequestTask, autoretry_for=(Exception,), retry_backoff=True, max_retries=5)
+@celery_app.task(bind=True, base=BaseTask)
 def run_actuarial_task(self, data_source_info: Dict[str, Any], institution_id: str) -> Dict[str, Any]:
     """
     Run actuarial analysis asynchronously.
@@ -167,7 +165,7 @@ def run_actuarial_task(self, data_source_info: Dict[str, Any], institution_id: s
     Returns:
         Dictionary containing the actuarial analysis result
     """
-    task_id = getattr(self.request, "id", str(uuid.uuid4()))
+    task_id = self.request.id
     logger.info(f"Starting actuarial task {task_id} for institution {institution_id}")
     
     try:
@@ -198,7 +196,7 @@ def run_actuarial_task(self, data_source_info: Dict[str, Any], institution_id: s
         raise
 
 
-@celery_app.task(bind=True, base=PatchableRequestTask, autoretry_for=(Exception,), retry_backoff=True, max_retries=5)
+@celery_app.task(bind=True, base=BaseTask)
 def generate_report_task(self, report_type: str, data: Dict[str, Any], institution_id: str) -> Dict[str, Any]:
     """
     Generate a report asynchronously.
@@ -211,7 +209,7 @@ def generate_report_task(self, report_type: str, data: Dict[str, Any], instituti
     Returns:
         Dictionary containing the report details
     """
-    task_id = getattr(self.request, "id", str(uuid.uuid4()))
+    task_id = self.request.id
     logger.info(f"Starting report generation task {task_id} for institution {institution_id}")
     
     try:

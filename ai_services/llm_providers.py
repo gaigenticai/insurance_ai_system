@@ -9,7 +9,6 @@ import httpx
 from abc import ABC, abstractmethod
 from typing import Dict, Any, List, Optional, Union
 from dataclasses import dataclass
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 logger = logging.getLogger(__name__)
 
@@ -22,18 +21,15 @@ class AIResponse:
     usage: Optional[Dict[str, Any]] = None
     metadata: Optional[Dict[str, Any]] = None
     error: Optional[str] = None
-    retries: int = 0
 
 class BaseLLMProvider(ABC):
     """Abstract base class for LLM providers."""
     
     def __init__(self, config: Dict[str, Any]):
         self.config = config
-        self.model = config.get("model", "default")
-        self.temperature = config.get("temperature", 0.7)
-        self.max_tokens = config.get("max_tokens", 1000)
-        self.max_retries = config.get("max_retries", 3)
-        self.retry_delay = config.get("retry_delay", 1)  # seconds
+        self.model = config.get('model', 'default')
+        self.temperature = config.get('temperature', 0.7)
+        self.max_tokens = config.get('max_tokens', 1000)
         
     @abstractmethod
     async def generate_response(self, prompt: str, **kwargs) -> AIResponse:
@@ -50,33 +46,32 @@ class OpenAIProvider(BaseLLMProvider):
     
     def __init__(self, config: Dict[str, Any]):
         super().__init__(config)
-        self.api_key = config.get("api_key") or os.getenv("OPENAI_API_KEY")
-        self.base_url = config.get("base_url", "https://api.openai.com/v1")
-        self.model = config.get("model", "gpt-4")
+        self.api_key = config.get('api_key') or os.getenv('OPENAI_API_KEY')
+        self.base_url = config.get('base_url', 'https://api.openai.com/v1')
+        self.model = config.get('model', 'gpt-4')
         
         if not self.api_key:
             raise ValueError("OpenAI API key is required")
     
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10), retry=retry_if_exception_type(httpx.RequestError))
     async def generate_response(self, prompt: str, **kwargs) -> AIResponse:
         """Generate a response using OpenAI API."""
         try:
             headers = {
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json"
+                'Authorization': f'Bearer {self.api_key}',
+                'Content-Type': 'application/json'
             }
             
             # Merge kwargs with default parameters
             params = {
-                "model": kwargs.get("model", self.model),
-                "messages": [{"role": "user", "content": prompt}],
-                "temperature": kwargs.get("temperature", self.temperature),
-                "max_tokens": kwargs.get("max_tokens", self.max_tokens)
+                'model': kwargs.get('model', self.model),
+                'messages': [{'role': 'user', 'content': prompt}],
+                'temperature': kwargs.get('temperature', self.temperature),
+                'max_tokens': kwargs.get('max_tokens', self.max_tokens)
             }
             
             async with httpx.AsyncClient() as client:
                 response = await client.post(
-                    f"{self.base_url}/chat/completions",
+                    f'{self.base_url}/chat/completions',
                     headers=headers,
                     json=params,
                     timeout=60.0
@@ -85,51 +80,58 @@ class OpenAIProvider(BaseLLMProvider):
                 if response.status_code != 200:
                     error_msg = f"OpenAI API error: {response.status_code} - {response.text}"
                     logger.error(error_msg)
-                    raise httpx.RequestError(error_msg) # Raise exception for retry
+                    return AIResponse(
+                        content="",
+                        model=self.model,
+                        error=error_msg
+                    )
                 
                 data = response.json()
-                content = data["choices"][0]["message"]["content"]
-                usage = data.get("usage", {})
+                content = data['choices'][0]['message']['content']
+                usage = data.get('usage', {})
                 
                 return AIResponse(
                     content=content,
-                    model=data["model"],
+                    model=data['model'],
                     usage=usage,
-                    metadata={"provider": "openai"}
+                    metadata={'provider': 'openai'}
                 )
                 
         except Exception as e:
             error_msg = f"Error calling OpenAI API: {str(e)}"
             logger.error(error_msg)
-            raise # Re-raise to allow tenacity to catch it
+            return AIResponse(
+                content="",
+                model=self.model,
+                error=error_msg
+            )
     
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10), retry=retry_if_exception_type(httpx.RequestError))
     async def generate_structured_response(self, prompt: str, schema: Dict[str, Any], **kwargs) -> AIResponse:
         """Generate a structured response using OpenAI function calling."""
         try:
             headers = {
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json"
+                'Authorization': f'Bearer {self.api_key}',
+                'Content-Type': 'application/json'
             }
             
             # Create function definition from schema
             function_def = {
-                "name": "structured_response",
-                "description": "Generate a structured response",
-                "parameters": schema
+                'name': 'structured_response',
+                'description': 'Generate a structured response',
+                'parameters': schema
             }
             
             params = {
-                "model": kwargs.get("model", self.model),
-                "messages": [{"role": "user", "content": prompt}],
-                "functions": [function_def],
-                "function_call": {"name": "structured_response"},
-                "temperature": kwargs.get("temperature", self.temperature)
+                'model': kwargs.get('model', self.model),
+                'messages': [{'role': 'user', 'content': prompt}],
+                'functions': [function_def],
+                'function_call': {'name': 'structured_response'},
+                'temperature': kwargs.get('temperature', self.temperature)
             }
             
             async with httpx.AsyncClient() as client:
                 response = await client.post(
-                    f"{self.base_url}/chat/completions",
+                    f'{self.base_url}/chat/completions',
                     headers=headers,
                     json=params,
                     timeout=60.0
@@ -138,29 +140,37 @@ class OpenAIProvider(BaseLLMProvider):
                 if response.status_code != 200:
                     error_msg = f"OpenAI API error: {response.status_code} - {response.text}"
                     logger.error(error_msg)
-                    raise httpx.RequestError(error_msg) # Raise exception for retry
+                    return AIResponse(
+                        content="",
+                        model=self.model,
+                        error=error_msg
+                    )
                 
                 data = response.json()
-                function_call = data["choices"][0]["message"].get("function_call")
+                function_call = data['choices'][0]['message'].get('function_call')
                 
                 if function_call:
-                    content = function_call["arguments"]
+                    content = function_call['arguments']
                 else:
-                    content = data["choices"][0]["message"]["content"]
+                    content = data['choices'][0]['message']['content']
                 
-                usage = data.get("usage", {})
+                usage = data.get('usage', {})
                 
                 return AIResponse(
                     content=content,
-                    model=data["model"],
+                    model=data['model'],
                     usage=usage,
-                    metadata={"provider": "openai", "structured": True}
+                    metadata={'provider': 'openai', 'structured': True}
                 )
                 
         except Exception as e:
             error_msg = f"Error calling OpenAI API for structured response: {str(e)}"
             logger.error(error_msg)
-            raise # Re-raise to allow tenacity to catch it
+            return AIResponse(
+                content="",
+                model=self.model,
+                error=error_msg
+            )
 
 
 class AnthropicProvider(BaseLLMProvider):
@@ -168,7 +178,7 @@ class AnthropicProvider(BaseLLMProvider):
     
     def __init__(self, config: Dict[str, Any]):
         super().__init__(config)
-        self.api_key = config.get("api_key") or os.getenv("ANTHROPIC_API_KEY")
+        self.api_key = config.get('api_key') or os.getenv('ANTHROPIC_API_KEY')
         if not self.api_key:
             raise ValueError("Anthropic API key not provided")
         
@@ -179,7 +189,6 @@ class AnthropicProvider(BaseLLMProvider):
         except ImportError:
             raise ImportError("anthropic package not installed. Install with: pip install anthropic")
     
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10), retry=retry_if_exception_type(Exception))
     async def generate_response(
         self,
         prompt: str,
@@ -197,8 +206,8 @@ class AnthropicProvider(BaseLLMProvider):
             # Make API call
             response = await self.client.messages.create(
                 model=self.model,
-                max_tokens=kwargs.get("max_tokens", self.config.get("max_tokens", 2000)),
-                temperature=kwargs.get("temperature", self.temperature),
+                max_tokens=kwargs.get('max_tokens', self.config.get('max_tokens', 2000)),
+                temperature=kwargs.get('temperature', self.temperature),
                 messages=messages
             )
             
@@ -215,9 +224,12 @@ class AnthropicProvider(BaseLLMProvider):
             
         except Exception as e:
             logger.error(f"Anthropic API error: {str(e)}")
-            raise # Re-raise to allow tenacity to catch it
+            return AIResponse(
+                content="",
+                model=self.model,
+                error=f"Anthropic API error: {str(e)}"
+            )
     
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10), retry=retry_if_exception_type(Exception))
     async def generate_structured_response(
         self,
         prompt: str,
@@ -244,7 +256,7 @@ Ensure your response is valid JSON and follows the schema exactly.
             )
             
             if response.error:
-                raise Exception(response.error) # Re-raise for retry
+                return response
             
             # Try to parse as JSON
             try:
@@ -253,15 +265,23 @@ Ensure your response is valid JSON and follows the schema exactly.
                     content=json.dumps(parsed_data),
                     model=response.model,
                     usage=response.usage,
-                    metadata={"provider": "anthropic", "structured": True}
+                    metadata={'provider': 'anthropic', 'structured': True}
                 )
             except json.JSONDecodeError as e:
-                raise e # Re-raise for retry
+                return AIResponse(
+                    content="",
+                    model=self.model,
+                    error=f"Failed to parse structured response: {str(e)}"
+                )
                 
         except Exception as e:
             error_msg = f"Error calling Anthropic API for structured response: {str(e)}"
             logger.error(error_msg)
-            raise # Re-raise to allow tenacity to catch it
+            return AIResponse(
+                content="",
+                model=self.model,
+                error=error_msg
+            )
 
 
 class LocalLLMProvider(BaseLLMProvider):
@@ -269,24 +289,23 @@ class LocalLLMProvider(BaseLLMProvider):
     
     def __init__(self, config: Dict[str, Any]):
         super().__init__(config)
-        self.base_url = config.get("base_url", "http://localhost:11434")
-        self.model = config.get("model", "llama2")
-        self.provider_type = config.get("provider_type", "ollama")  # ollama, vllm, lmstudio, textgen, etc.
-        self.api_key = config.get("api_key")  # Some local providers may require API keys
+        self.base_url = config.get('base_url', 'http://localhost:11434')
+        self.model = config.get('model', 'llama2')
+        self.provider_type = config.get('provider_type', 'ollama')  # ollama, vllm, lmstudio, textgen, etc.
+        self.api_key = config.get('api_key')  # Some local providers may require API keys
     
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10), retry=retry_if_exception_type(httpx.RequestError))
     async def generate_response(self, prompt: str, **kwargs) -> AIResponse:
         """Generate a response using local LLM."""
         try:
-            if self.provider_type == "ollama":
+            if self.provider_type == 'ollama':
                 return await self._call_ollama(prompt, **kwargs)
-            elif self.provider_type == "vllm":
+            elif self.provider_type == 'vllm':
                 return await self._call_vllm(prompt, **kwargs)
-            elif self.provider_type == "lmstudio":
+            elif self.provider_type == 'lmstudio':
                 return await self._call_lmstudio(prompt, **kwargs)
-            elif self.provider_type == "textgen":
+            elif self.provider_type == 'textgen':
                 return await self._call_textgen(prompt, **kwargs)
-            elif self.provider_type == "llamacpp":
+            elif self.provider_type == 'llamacpp':
                 return await self._call_llamacpp(prompt, **kwargs)
             else:
                 return await self._call_generic_openai_compatible(prompt, **kwargs)
@@ -294,7 +313,11 @@ class LocalLLMProvider(BaseLLMProvider):
         except Exception as e:
             error_msg = f"Error calling local LLM: {str(e)}"
             logger.error(error_msg)
-            raise # Re-raise to allow tenacity to catch it
+            return AIResponse(
+                content="",
+                model=self.model,
+                error=error_msg
+            )
     
     async def generate_structured_response(self, prompt: str, schema: Dict[str, Any], **kwargs) -> AIResponse:
         """Generate a structured response using local LLM."""
@@ -310,25 +333,25 @@ Ensure your response is valid JSON and follows the schema exactly.
         
         response = await self.generate_response(schema_prompt, **kwargs)
         if response.content and not response.error:
-            response.metadata = {"provider": "local", "structured": True}
+            response.metadata = {'provider': 'local', 'structured': True}
         
         return response
     
     async def _call_ollama(self, prompt: str, **kwargs) -> AIResponse:
         """Call Ollama API."""
         params = {
-            "model": kwargs.get("model", self.model),
-            "prompt": prompt,
-            "stream": False,
-            "options": {
-                "temperature": kwargs.get("temperature", self.temperature),
-                "num_predict": kwargs.get("max_tokens", self.max_tokens)
+            'model': kwargs.get('model', self.model),
+            'prompt': prompt,
+            'stream': False,
+            'options': {
+                'temperature': kwargs.get('temperature', self.temperature),
+                'num_predict': kwargs.get('max_tokens', self.max_tokens)
             }
         }
         
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                f"{self.base_url}/api/generate",
+                f'{self.base_url}/api/generate',
                 json=params,
                 timeout=120.0
             )
@@ -343,12 +366,12 @@ Ensure your response is valid JSON and follows the schema exactly.
                 )
             
             data = response.json()
-            content = data.get("response", "")
+            content = data.get('response', '')
             
             return AIResponse(
                 content=content,
-                model=data.get("model", self.model),
-                metadata={"provider": "ollama"}
+                model=data.get('model', self.model),
+                metadata={'provider': 'ollama'}
             )
     
     async def _call_vllm(self, prompt: str, **kwargs) -> AIResponse:
@@ -359,18 +382,18 @@ Ensure your response is valid JSON and follows the schema exactly.
         """Call LM Studio API."""
         headers = {}
         if self.api_key:
-            headers["Authorization"] = f"Bearer {self.api_key}"
+            headers['Authorization'] = f'Bearer {self.api_key}'
         
         params = {
-            "model": kwargs.get("model", self.model),
-            "messages": [{"role": "user", "content": prompt}],
-            "temperature": kwargs.get("temperature", self.temperature),
-            "max_tokens": kwargs.get("max_tokens", self.max_tokens)
+            'model': kwargs.get('model', self.model),
+            'messages': [{'role': 'user', 'content': prompt}],
+            'temperature': kwargs.get('temperature', self.temperature),
+            'max_tokens': kwargs.get('max_tokens', self.max_tokens)
         }
         
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                f"{self.base_url}/v1/chat/completions",
+                f'{self.base_url}/v1/chat/completions',
                 headers=headers,
                 json=params,
                 timeout=120.0
@@ -386,42 +409,45 @@ Ensure your response is valid JSON and follows the schema exactly.
                 )
             
             data = response.json()
-            content = data["choices"][0]["message"]["content"]
-            usage = data.get("usage", {})
+            content = data['choices'][0]['message']['content']
+            usage = data.get('usage', {})
             
             return AIResponse(
                 content=content,
-                model=data.get("model", self.model),
+                model=data.get('model', self.model),
                 usage=usage,
-                metadata={"provider": "lmstudio"}
+                metadata={'provider': 'lmstudio'}
             )
     
     async def _call_textgen(self, prompt: str, **kwargs) -> AIResponse:
         """Call Text Generation WebUI API."""
         params = {
-            "prompt": prompt,
-            "max_new_tokens": kwargs.get("max_tokens", self.max_tokens),
-            "temperature": kwargs.get("temperature", self.temperature),
-            "do_sample": True,
-            "top_p": kwargs.get("top_p", 0.9),
-            "typical_p": kwargs.get("typical_p", 1),
-            "repetition_penalty": kwargs.get("repetition_penalty", 1.0),
-            "encoder_repetition_penalty": kwargs.get("encoder_repetition_penalty", 1.0),
-            "top_k": kwargs.get("top_k", 0),
-            "min_length": kwargs.get("min_length", 0),
-            "no_repeat_ngram_size": kwargs.get("no_repeat_ngram_size", 0),
-            "num_beams": kwargs.get("num_beams", 1),
-            "penalty_alpha": kwargs.get("penalty_alpha", 0),
-            "length_penalty": kwargs.get("length_penalty", 1),
-            "early_stopping": kwargs.get("early_stopping", False),
-            "seed": kwargs.get("seed", -1),
-            "truncation_length": kwargs.get("truncation_length", 0),
-            "max_tokens": kwargs.get("max_tokens", self.max_tokens) # Redundant but for safety
+            'prompt': prompt,
+            'max_new_tokens': kwargs.get('max_tokens', self.max_tokens),
+            'temperature': kwargs.get('temperature', self.temperature),
+            'do_sample': True,
+            'top_p': kwargs.get('top_p', 0.9),
+            'typical_p': kwargs.get('typical_p', 1),
+            'repetition_penalty': kwargs.get('repetition_penalty', 1.1),
+            'encoder_repetition_penalty': kwargs.get('encoder_repetition_penalty', 1),
+            'top_k': kwargs.get('top_k', 40),
+            'min_length': kwargs.get('min_length', 0),
+            'no_repeat_ngram_size': kwargs.get('no_repeat_ngram_size', 0),
+            'num_beams': kwargs.get('num_beams', 1),
+            'penalty_alpha': kwargs.get('penalty_alpha', 0),
+            'length_penalty': kwargs.get('length_penalty', 1),
+            'early_stopping': kwargs.get('early_stopping', False),
+            'seed': kwargs.get('seed', -1),
+            'add_bos_token': kwargs.get('add_bos_token', True),
+            'truncation_length': kwargs.get('truncation_length', 2048),
+            'ban_eos_token': kwargs.get('ban_eos_token', False),
+            'skip_special_tokens': kwargs.get('skip_special_tokens', True),
+            'stopping_strings': kwargs.get('stopping_strings', [])
         }
         
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                f"{self.base_url}/api/v1/generate",
+                f'{self.base_url}/api/v1/generate',
                 json=params,
                 timeout=120.0
             )
@@ -436,31 +462,38 @@ Ensure your response is valid JSON and follows the schema exactly.
                 )
             
             data = response.json()
-            content = data["results"][0]["text"]
+            content = data['results'][0]['text'] if data.get('results') else ""
             
             return AIResponse(
                 content=content,
                 model=self.model,
-                metadata={"provider": "textgen"}
+                metadata={'provider': 'textgen'}
             )
-
+    
     async def _call_llamacpp(self, prompt: str, **kwargs) -> AIResponse:
-        """Call llama.cpp API."""
-        headers = {
-            "Content-Type": "application/json"
-        }
-        
+        """Call llama.cpp server API."""
         params = {
-            "prompt": prompt,
-            "n_predict": kwargs.get("max_tokens", self.max_tokens),
-            "temperature": kwargs.get("temperature", self.temperature),
-            "stop": kwargs.get("stop", [])
+            'prompt': prompt,
+            'n_predict': kwargs.get('max_tokens', self.max_tokens),
+            'temperature': kwargs.get('temperature', self.temperature),
+            'top_k': kwargs.get('top_k', 40),
+            'top_p': kwargs.get('top_p', 0.9),
+            'repeat_penalty': kwargs.get('repeat_penalty', 1.1),
+            'repeat_last_n': kwargs.get('repeat_last_n', 64),
+            'penalize_nl': kwargs.get('penalize_nl', True),
+            'presence_penalty': kwargs.get('presence_penalty', 0.0),
+            'frequency_penalty': kwargs.get('frequency_penalty', 0.0),
+            'mirostat': kwargs.get('mirostat', 0),
+            'mirostat_tau': kwargs.get('mirostat_tau', 5.0),
+            'mirostat_eta': kwargs.get('mirostat_eta', 0.1),
+            'seed': kwargs.get('seed', -1),
+            'ignore_eos': kwargs.get('ignore_eos', False),
+            'stream': False
         }
         
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                f"{self.base_url}/completion",
-                headers=headers,
+                f'{self.base_url}/completion',
                 json=params,
                 timeout=120.0
             )
@@ -475,37 +508,42 @@ Ensure your response is valid JSON and follows the schema exactly.
                 )
             
             data = response.json()
-            content = data["content"]
+            content = data.get('content', '')
             
             return AIResponse(
                 content=content,
                 model=self.model,
-                metadata={"provider": "llamacpp"}
+                usage={
+                    'prompt_tokens': data.get('tokens_evaluated', 0),
+                    'completion_tokens': data.get('tokens_predicted', 0),
+                    'total_tokens': data.get('tokens_evaluated', 0) + data.get('tokens_predicted', 0)
+                },
+                metadata={'provider': 'llamacpp'}
             )
 
     async def _call_generic_openai_compatible(self, prompt: str, **kwargs) -> AIResponse:
-        """Call a generic OpenAI-compatible API."""
-        headers = {}
+        """Call OpenAI-compatible API."""
+        headers = {'Content-Type': 'application/json'}
         if self.api_key:
-            headers["Authorization"] = f"Bearer {self.api_key}"
+            headers['Authorization'] = f'Bearer {self.api_key}'
         
         params = {
-            "model": kwargs.get("model", self.model),
-            "messages": [{"role": "user", "content": prompt}],
-            "temperature": kwargs.get("temperature", self.temperature),
-            "max_tokens": kwargs.get("max_tokens", self.max_tokens)
+            'model': kwargs.get('model', self.model),
+            'messages': [{'role': 'user', 'content': prompt}],
+            'temperature': kwargs.get('temperature', self.temperature),
+            'max_tokens': kwargs.get('max_tokens', self.max_tokens)
         }
         
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                f"{self.base_url}/v1/chat/completions",
+                f'{self.base_url}/v1/chat/completions',
                 headers=headers,
                 json=params,
                 timeout=120.0
             )
             
             if response.status_code != 200:
-                error_msg = f"Generic OpenAI-compatible API error: {response.status_code} - {response.text}"
+                error_msg = f"Local LLM API error: {response.status_code} - {response.text}"
                 logger.error(error_msg)
                 return AIResponse(
                     content="",
@@ -514,29 +552,30 @@ Ensure your response is valid JSON and follows the schema exactly.
                 )
             
             data = response.json()
-            content = data["choices"][0]["message"]["content"]
-            usage = data.get("usage", {})
+            content = data['choices'][0]['message']['content']
+            usage = data.get('usage', {})
             
             return AIResponse(
                 content=content,
-                model=data.get("model", self.model),
+                model=data.get('model', self.model),
                 usage=usage,
-                metadata={"provider": "generic_openai_compatible"}
+                metadata={'provider': 'local'}
             )
 
-
-
-
 class LLMProviderFactory:
+    """Factory for creating LLM providers."""
+    
     @staticmethod
     def create_provider(provider_type: str, config: Dict[str, Any]) -> BaseLLMProvider:
-        if provider_type == "openai":
+        """Create an LLM provider based on type."""
+        if provider_type.lower() == 'openai':
             return OpenAIProvider(config)
-        elif provider_type == "anthropic":
+        elif provider_type.lower() == 'anthropic':
             return AnthropicProvider(config)
-        elif provider_type == "local":
+        elif provider_type.lower() in ['local', 'ollama', 'vllm', 'lmstudio', 'textgen', 'llamacpp']:
             return LocalLLMProvider(config)
+        elif provider_type.lower() == 'mock':
+            from .mock_ai_provider import MockAIProvider
+            return MockAIProvider(config)
         else:
-            raise ValueError(f"Unknown LLM provider type: {provider_type}")
-
-
+            raise ValueError(f"Unsupported provider type: {provider_type}")
