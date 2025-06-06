@@ -15,6 +15,10 @@ from fastapi.responses import JSONResponse
 from fastapi.openapi.docs import get_swagger_ui_html
 import uvicorn
 from fastapi_limiter.depends import RateLimiter
+import redis
+from fastapi_limiter import FastAPILimiter
+import redis
+from fastapi_limiter import FastAPILimiter
 
 from utils.knowledge_base import get_answer
 
@@ -879,12 +883,12 @@ from contextlib import asynccontextmanager
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
-    redis_instance = redis.from_url("redis://localhost", encoding="utf8", decode_responses=True)
+    # Startup: Initialize resources
+    redis_instance = redis.from_url("redis://default:dDkwkLMlexeGsZTkWbfOcxXYJsJMRfpM@hopper.proxy.rlwy.net:20859", encoding="utf-8", decode_responses=True)
     await FastAPILimiter.init(redis_instance)
     yield
-    # Shutdown
-    await FastAPILimiter.close()
+    # Cleanup: Release resources
+    await redis_instance.close()
 
 app = FastAPI(
     title="Insurance AI System API",
