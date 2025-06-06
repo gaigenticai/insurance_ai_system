@@ -45,7 +45,7 @@ class Permission(str, Enum):
     VIEW_METRICS = "view:metrics"
 
 
-ROLE_PERMISSIONS: Dict[UserRole, Set[Permission]] = {
+ROLE_PERMISSIONS: dict[UserRole, Set[Permission]] = {
     UserRole.ADMIN: {
         Permission.VIEW_DASHBOARD,
         Permission.VIEW_AUDIT_LOGS,
